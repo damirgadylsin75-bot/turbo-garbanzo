@@ -176,6 +176,9 @@ function M.new(id: string, stats: FighterStats?, player: Player?): FighterState
 		s.health = math.max(0, s.health - dmg)
 		s.stamina:takeDamage(result.staminaDamage)
 
+		-- запоминаем фазу ДО обнуления мува: прерывать можно только замах
+		local wasStartup = s.move ~= nil and s.phase == "startup"
+
 		if result.knockdown and not s.blocked then
 			s:applyKnockdown()
 			s.getupFrames = 90 -- ~1.5 сек лежим, потом встаём
@@ -183,11 +186,16 @@ function M.new(id: string, stats: FighterStats?, player: Player?): FighterState
 			return
 		end
 
-		if result.stunFrames > 0 and not s.blocked then
+		-- Прерывание: попадание в замах ломает мув. Это ключевая механика
+		-- файтинга — именно она делает джеб (7 кадров) ответом на медленный
+		-- spinning_back_kick (26 кадров). Без неё выгоднее всегда бить strongest.
+		if result.stunFrames > 0 then
 			s.stunFrames = math.max(s.stunFrames, result.stunFrames)
-			s.move = nil
-			s.moveFrame = 0
-			s.phase = "none"
+			if wasStartup and not result.blocked then
+				s.move = nil
+				s.moveFrame = 0
+				s.phase = "none"
+			end
 		end
 	end
 

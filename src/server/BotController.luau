@@ -56,12 +56,19 @@ local function pickStrike(distance: number, staminaRatio: number, aggression: nu
 		if cost > staminaRatio * 100 then
 			continue -- нет стамины
 		end
-		-- скоринг: урон + скорость - риск (длинный recovery = наказание)
-		local score = move.damage.health
-			+ move.reaction.knockdownChance * 25
-			- move.timing.recovery * 0.35 * aggression
+		-- Скоринг (должен совпадать с tools/simulate.py, иначе автобаланс врёт):
+		--   урон нормирован на «цену окна» startup+recovery, как в UFC 4,
+		--   плюс бонус быстрым мувам — они прерывают медленные (см. resolveCollisions).
+		-- Без нормировки бот всегда берёт самый сильный и самый медленный приём.
+		local commitment = move.timing.startup + move.timing.recovery
+		local speedBonus = math.max(0, 26 - move.timing.startup) * 0.22 * aggression
+		local score = (move.damage.health + move.reaction.knockdownChance * 12)
+				* (36 / math.max(12, commitment))
+			- commitment * 0.045 * (1.4 - aggression)
+			+ speedBonus
 			- rangeErr * 2
-			+ (math.random() * 6 - 3)
+			- cost * 0.06
+			+ (math.random() * 5 - 2.5)
 		if score > bestScore then
 			bestScore, best = score, move.id
 		end

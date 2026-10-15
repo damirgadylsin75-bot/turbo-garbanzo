@@ -106,6 +106,7 @@ tools/
   pose_extract.py         # видео -> CSV скелета (MediaPipe)
   calibrate.py            # CSV -> startup/active/recovery + валидация JSON
   luau_syntax_check.py    # офлайн-проверка синтаксиса .luau (Luau -> Lua 5.1 + парсер)
+  simulate.py             # headless-симулятор боёв -> CSV для автобаланса
 docs/
   reverse-engineering.md  # ★ как замерять UFC 4 по кадрам
   ai-workflow.md          # ★ как вайбкодить это нейросетями + промпты
@@ -127,6 +128,28 @@ docs/
 | `B` / `N` | slip / duck (хэд-мувмент) | `L1` |
 | `Space` / `ПКМ` | блок (удерживать) | `L2` |
 | `W W` | двойной тап = проход в ноги | — |
+
+---
+
+## Автобаланс чисел (без Studio)
+
+```bash
+python3 tools/simulate.py --fights 5000 --seed 42   # -> build/sim/*.csv + report.txt
+python3 tools/simulate.py --report                  # показать отчёт
+```
+
+Симулятор гоняет бои бот-против-бота на **тех же формулах**, что и Luau
+(`resolveHit`, стамина, окна отмены, прерывание замаха), и выдаёт:
+
+- `moves_stats.csv` — по каждому муву: использования, точность, урон/использование, нокдауны;
+- `fights.csv` — исходы боёв;
+- `report.txt` — топ мувов + **флаги** («пере-урон», «слишком точный», «низкое использование»).
+
+Этот CSV скармливается нейросети с промптом «Автобаланс» из
+[`docs/ai-workflow.md`](docs/ai-workflow.md) — на выходе diff к `data/moves.json`.
+
+⚠️ Формулы в `tools/simulate.py` должны совпадать с `src/shared/FrameData.luau`
+и `src/shared/StaminaSystem.luau`. Меняешь одно — меняй другое, иначе баланс врёт.
 
 ---
 
