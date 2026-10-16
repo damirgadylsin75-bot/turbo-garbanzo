@@ -1,7 +1,8 @@
 --!strict
--- AnimDriver: маппинг "id приёма -> Roblox Animation".
--- Сюда вставляешь assetId анимаций, которые сделал в Blender / купил /
--- сгенерировал через Move.ai-Rokoko и ретаргетнул на R15.
+-- AnimDriver: маппинг "id приёма -> Roblox Animation" (тестовая сборка).
+-- Сюда вставляешь assetId анимаций: 12 приёмов стойки + knockdown/getup/idle.
+-- Без анимаций игра работает: логика считает кадры по data/moves.json,
+-- просто не будет визуала замахов.
 --
 -- Ретаргет: BVH/FBX -> Blender (armature = R15-скелет) -> экспорт FBX ->
 -- Roblox Studio Animation Editor -> Publish to Roblox -> assetId.
@@ -21,27 +22,12 @@ M.ANIMATIONS = {
 	kick_low = "",
 	kick_body = "",
 	kick_head = "",
-	spinning_back_kick = "",
-	knee_clinch = "",
-	elbow_clinch = "",
-	superman_punch = "",
 	block = "",
 	slip = "",
 	duck = "",
-	double_leg = "",
-	single_leg = "",
-	clinch_trip = "",
-	ground_pound_top = "",
-	ground_punch_bottom = "",
-	escape_guard = "",
-	armbar_guard = "",
-	transition_mount = "",
-	rnc_attempt = "",
 	knockdown = "",
 	getup = "",
 	idle = "",
-	walk_fwd = "",
-	walk_back = "",
 }
 
 local cache: { [string]: Animation } = {}
@@ -88,6 +74,38 @@ local function getTrack(id: string): AnimationTrack?
 	local track = an:LoadAnimation(anim)
 	tracks[id] = track
 	return track
+end
+
+-- Кэш треков инвалидируется при респавне: треки старого персонажа мертвы
+local function invalidate()
+	tracks = {}
+	cache = {}
+	animator = nil
+	currentTrack = nil
+	currentId = nil
+end
+
+function M.start()
+	Players.LocalPlayer.CharacterAdded:Connect(function()
+		invalidate()
+	end)
+end
+
+-- Печатает в Output, какие анимации не подключены
+function M.reportMissing()
+	local missing = {}
+	for id, assetId in pairs(M.ANIMATIONS) do
+		if assetId == "" then
+			table.insert(missing, id)
+		end
+	end
+	table.sort(missing)
+	if #missing == 0 then
+		print("[AnimDriver] все анимации подключены")
+		return
+	end
+	print("[AnimDriver] не подключены анимации (" .. tostring(#missing) .. "): " .. table.concat(missing, ", "))
+	print("[AnimDriver] без анимаций игра работает - логика считает кадры по data/moves.json")
 end
 
 function M.play(id: string, speed: number?)

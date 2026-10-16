@@ -22,11 +22,6 @@
       }
     },
 
-    "ServerStorage": {
-      "$className": "ServerStorage",
-      "Tests": { "$path": "tests" }
-    },
-
     "Workspace": {
       "$className": "Workspace",
       "$properties": {

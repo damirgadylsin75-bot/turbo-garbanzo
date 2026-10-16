@@ -1,7 +1,8 @@
 --!strict
 -- Moves: загрузчик базы приёмов из data/moves.json.
--- Вся "физика UFC 4" живёт в JSON - так её можно править, не трогая код,
--- и генерировать/дополнять нейросетью пачками.
+-- Вся "физика UFC 4" живёт в JSON - так её можно править, не трогая код.
+-- Тестовая сборка: 12 приёмов стойки + общие секции combat/balance/stamina/
+-- hurtboxes/dummy. Все игровые числа берутся отсюда, не из кода.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -12,6 +13,13 @@ local M = {}
 
 local cache: { [string]: MoveDef } = {}
 local byCategory: { [string]: { MoveDef } } = {}
+local settings: { [string]: any } = {
+	combat = {},
+	balance = {},
+	stamina = {},
+	hurtboxes = {},
+	dummy = {},
+}
 local loaded = false
 
 local function load()
@@ -23,6 +31,20 @@ local function load()
 	local folder = ReplicatedStorage:WaitForChild("FightData")
 	local asset = folder:WaitForChild("moves") :: JsonStringValue
 	local decoded = game:GetService("HttpService"):JSONDecode(asset.Value)
+
+	-- общие секции настроек (все числа боя - в JSON)
+	settings.combat = decoded.combat or settings.combat
+	settings.balance = decoded.balance or settings.balance
+	settings.stamina = decoded.stamina or settings.stamina
+	settings.dummy = decoded.dummy or settings.dummy
+	if typeof(decoded.hurtboxes) == "table" then
+		settings.hurtboxes = decoded.hurtboxes
+	end
+	for _, hb in ipairs(settings.hurtboxes) do
+		if typeof(hb.size) ~= "Vector3" then
+			hb.size = Vector3.new(hb.size[1] or 1, hb.size[2] or 1, hb.size[3] or 1)
+		end
+	end
 
 	for _, raw in ipairs(decoded.moves) do
 		local move = raw :: MoveDef
@@ -58,6 +80,15 @@ function M.get(id: string): MoveDef?
 	return cache[id]
 end
 
+-- Валидация moveId от клиента: только приёмы из JSON проходят на сервер
+function M.isValid(id: any): boolean
+	if typeof(id) ~= "string" then
+		return false
+	end
+	load()
+	return cache[id] ~= nil
+end
+
 function M.all(): { MoveDef }
 	load()
 	local out = {}
@@ -72,27 +103,39 @@ function M.byCategory(category: string): { MoveDef }
 	return byCategory[category] or {}
 end
 
--- Быстрые шорткаты для кода и для ИИ-бойца
+-- Быстрые шорткаты для кода и для манекена
 function M.standingStrikes(): { MoveDef }
-	local out = {}
-	for _, move in ipairs(M.byCategory("strike")) do
-		if not move.props.onGroundOnly then
-			table.insert(out, move)
-		end
-	end
-	return out
+	return M.byCategory("strike")
 end
 
-function M.groundStrikes(): { MoveDef }
-	local out = {}
-	for _, move in ipairs(M.byCategory("ground_strike")) do
-		table.insert(out, move)
-	end
-	return out
+function M.defensive(): { MoveDef }
+	return M.byCategory("defense")
 end
 
-function M.takedowns(): { MoveDef }
-	return M.byCategory("grapple")
+-- Общие настройки боя (все числа - из data/moves.json)
+function M.combat(): { [string]: any }
+	load()
+	return settings.combat
+end
+
+function M.balance(): { [string]: any }
+	load()
+	return settings.balance
+end
+
+function M.staminaConfig(): { [string]: any }
+	load()
+	return settings.stamina
+end
+
+function M.hurtboxes(): { [string]: any }
+	load()
+	return settings.hurtboxes
+end
+
+function M.dummyConfig(): { [string]: any }
+	load()
+	return settings.dummy
 end
 
 return M

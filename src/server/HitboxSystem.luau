@@ -8,15 +8,15 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local FrameData = require(Shared:WaitForChild("FrameData"))
+local Moves = require(Shared:WaitForChild("Moves"))
 
 local M = {}
 
--- Части тела, которые считаются "можно бить". Размер в студах.
-M.HURTBOXES = {
-	head = { bone = "Head", size = Vector3.new(1.6, 1.6, 1.6), level = "high" },
-	torso = { bone = "UpperTorso", size = Vector3.new(2.6, 2.4, 1.6), level = "mid" },
-	legs = { bone = "LowerTorso", size = Vector3.new(2.2, 2.6, 1.6), level = "low" },
-}
+-- Части тела, которые считаются "можно бить": хуртбоксы Head/UpperTorso/LowerTorso.
+-- Размеры и уровни - в data/moves.json, секция "hurtboxes".
+local function hurtboxSpecs(): { { name: string, bone: string, size: Vector3, level: string } }
+	return Moves.hurtboxes() :: any
+end
 
 M.HITBOX_FOLDER = "FightHitboxes"
 M.HURTBOX_FOLDER = "FightHurtboxes"
@@ -38,13 +38,13 @@ function M.buildHurtboxes(character: Model)
 	folder:ClearAllChildren()
 
 	local parts = {}
-	for name, spec in pairs(M.HURTBOXES) do
+	for _, spec in ipairs(hurtboxSpecs()) do
 		local bone = character:FindFirstChild(spec.bone, true)
 		if not bone then
 			continue
 		end
 		local part = Instance.new("Part")
-		part.Name = name
+		part.Name = spec.name
 		part.Size = spec.size
 		part.Transparency = 1
 		part.CanCollide = false
