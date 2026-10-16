@@ -1,0 +1,45 @@
+{
+  "$comment": "Статы бойцов 0..100. default - игрок, bot - ИИ-соперник. Дальше сюда можно грузить ростер (свои 'фейковые' бойцы, не реальные имена UFC).",
+  "fighters": {
+    "default": {
+      "punchPower": 70,
+      "kickPower": 65,
+      "groundPound": 60,
+      "grappleOffense": 62,
+      "grappleDefense": 60,
+      "speed": 68,
+      "chin": 65,
+      "staminaPool": 70
+    },
+    "bot": {
+      "punchPower": 64,
+      "kickPower": 60,
+      "groundPound": 55,
+      "grappleOffense": 58,
+      "grappleDefense": 62,
+      "speed": 62,
+      "chin": 70,
+      "staminaPool": 65
+    },
+    "striker_archetype": {
+      "punchPower": 88,
+      "kickPower": 90,
+      "groundPound": 65,
+      "grappleOffense": 40,
+      "grappleDefense": 45,
+      "speed": 75,
+      "chin": 55,
+      "staminaPool": 60
+    },
+    "grappler_archetype": {
+      "punchPower": 55,
+      "kickPower": 45,
+      "groundPound": 85,
+      "grappleOffense": 92,
+      "grappleDefense": 88,
+      "speed": 60,
+      "chin": 75,
+      "staminaPool": 80
+    }
+  }
+}

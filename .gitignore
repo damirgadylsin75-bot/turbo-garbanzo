@@ -1,0 +1,27 @@
+# артефакты калибровки и видео (тяжёлые, в git не храним)
+clips/
+*.mp4
+*.mkv
+*.avi
+*.csv
+!data/*.csv
+
+# сборки Roblox
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# node / rojo
+node_modules/
+build/
+
+# OS
+.DS_Store
+Thumbs.db

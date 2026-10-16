@@ -1,0 +1,37 @@
+{
+  "name": "turbo-garbanzo-mma",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Shared": { "$path": "src/shared" },
+      "FightData": { "$path": "data" }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Server": { "$path": "src/server" }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "Client": { "$path": "src/client" }
+      }
+    },
+
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "Tests": { "$path": "tests" }
+    },
+
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {
+        "PhysicsSteppingMethod": "FixedTimestep"
+      }
+    }
+  }
+}
