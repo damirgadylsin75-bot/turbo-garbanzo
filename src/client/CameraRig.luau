@@ -3,7 +3,6 @@
 -- Камера держит середину между бойцами, отъезжает при разрыве дистанции,
 -- слегка "дышит" и трясётся на попаданиях.
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -39,13 +38,15 @@ function M.start()
 	local targets: { BasePart } = {}
 
 	RunService.RenderStepped:Connect(function(dt)
-		-- собираем бойцов
+		-- собираем бойцов: игроки + манекен (любая модель с Humanoid)
 		targets = {}
-		for _, p in ipairs(Players:GetPlayers()) do
-			local char = p.Character
-			local hrp = char and char:FindFirstChild("HumanoidRootPart")
-			if hrp and hrp:IsA("BasePart") then
-				table.insert(targets, hrp :: BasePart)
+		for _, inst in ipairs(workspace:GetChildren()) do
+			if inst:IsA("Model") then
+				local hum = inst:FindFirstChildOfClass("Humanoid")
+				local hrp = inst:FindFirstChild("HumanoidRootPart")
+				if hum and hrp and hrp:IsA("BasePart") then
+					table.insert(targets, hrp :: BasePart)
+				end
 			end
 		end
 		if #targets == 0 then

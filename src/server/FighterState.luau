@@ -1,7 +1,11 @@
 --!strict
 -- FighterState: состояние одного бойца на сервере (авторитет).
--- Сервер гоняет это в fixed-timestep цикле; клиент держит зеркальную копию
--- и сверяется (реконсиляция) - см. src/client/Prediction.luau
+-- Сервер гоняет это в fixed-timestep цикле 60 Гц (см. MatchServer).
+-- Тестовая сборка (только стойка): нет grounded/getupFrames - есть knockdownFrames.
+-- Нокдаун дёшевый: Humanoid.PlatformStand = true + ChangeState(Physics),
+-- при подъёме - ChangeState(GettingUp).
+-- Сохранено: буфер ввода, окна отмены, супер-армор, прерывание ТОЛЬКО замаха.
+-- Все числа - из data/moves.json (секции combat/balance/stamina).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -42,15 +46,11 @@ export type FighterState = {
 	stunFrames: number,
 	blocked: boolean,
 	blockHeldFrames: number,
-	grounded: boolean,
-	getupFrames: number,
+	knockdownFrames: number,
 	invulnFrames: number,
 
 	-- буфер ввода (как в файтингах: ввод запоминается и исполняется в ближайшем окне)
-	inputBuffer: { { moveId: string, atFrame: number, dir: Vector3 } },
-
-	-- намерение движения (задаётся клиентом/ботом, применяется сервером)
-	moveIntent: Vector3?,
+	inputBuffer: { { moveId: string, atFrame: number } },
 
 	-- один мув = максимум одно попадание; сбрасывается при выходе из активных кадров
 	hitConsumed: boolean,
@@ -58,7 +58,7 @@ export type FighterState = {
 	-- сетка
 	tick: number,
 
-	beginMove: ((self: any, moveId: string, dir: Vector3?) -> boolean),
+	beginMove: ((self: any, moveId: string) -> boolean),
 	update: ((self: any, dt: number, opponent: any) -> ()),
 	consumeHit: ((self: any, result: FrameData.HitResult) -> ()),
 	canAct: ((self: any) -> boolean),
@@ -79,15 +79,28 @@ M.DEFAULT_STATS = {
 	staminaPool = 60,
 } :: FighterStats
 
-M.STATES = { "idle", "startup", "active", "recovery", "blocking", "stunned", "knockdown", "getup", "ground", "finished" }
+M.STATES = { "idle", "startup", "active", "recovery", "blocking", "stunned", "knockdown", "finished" }
 
-local BUFFER_WINDOW_FRAMES = 10
+local function getHumanoid(s: FighterState): Humanoid?
+	local char = s.character
+	if not char then
+		return nil
+	end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if hum then
+		return hum
+	end
+	return nil
+end
 
 function M.new(id: string, stats: FighterStats?, player: Player?): FighterState
 	local st = stats or M.DEFAULT_STATS
-	local cfg = table.clone(StaminaSystem.DEFAULT_CONFIG)
-	cfg.max = 100 + (st.staminaPool - 50) * 0.6 -- стата стамины увеличивает бак
-	cfg.regenPerSecondIdle = 5.0 + (st.staminaPool / 100) * 4
+	local combat = Moves.combat()
+	local jsonCfg = Moves.staminaConfig() :: any
+	local cfg = table.clone(jsonCfg) :: StaminaSystem.StaminaConfig
+	-- стата стамины увеличивает бак и реген (числа масштабирования - в JSON)
+	cfg.max = jsonCfg.max + (st.staminaPool - combat.staminaPoolMid) * combat.staminaPerPoolPoint
+	cfg.regenPerSecondIdle = combat.regenPoolBase + (st.staminaPool / 100) * combat.regenPoolSpan
 
 	local self
 	self = {
@@ -108,16 +121,16 @@ function M.new(id: string, stats: FighterStats?, player: Player?): FighterState
 		stunFrames = 0,
 		blocked = false,
 		blockHeldFrames = 0,
-		grounded = false,
-		getupFrames = 0,
+		knockdownFrames = 0,
 		invulnFrames = 0,
 
 		inputBuffer = {},
+		hitConsumed = false,
 		tick = 0,
 	} :: any
 
 	self.canAct = function(s: FighterState): boolean
-		if s.stunFrames > 0 or s.grounded or s.getupFrames > 0 then
+		if s.stunFrames > 0 or s.knockdownFrames > 0 then
 			return false
 		end
 		if s.move and s.phase ~= "none" then
@@ -127,28 +140,22 @@ function M.new(id: string, stats: FighterStats?, player: Player?): FighterState
 		return true
 	end
 
-	self.beginMove = function(s: FighterState, moveId: string, dir: Vector3?): boolean
+	self.beginMove = function(s: FighterState, moveId: string): boolean
 		local move = Moves.get(moveId)
 		if not move then
 			return false
 		end
 		if not s:canAct() then
 			-- не прошло сейчас -> кладём в буфер, файтинги так и делают
-			if #s.inputBuffer < 3 then
-				table.insert(s.inputBuffer, { moveId = moveId, atFrame = s.tick, dir = dir or Vector3.zero })
+			if #s.inputBuffer < combat.inputBufferMaxEntries then
+				table.insert(s.inputBuffer, { moveId = moveId, atFrame = s.tick })
 			end
 			return false
 		end
-		if move.props.onGroundOnly and not s.grounded then
-			return false
-		end
-		if move.props.standingOnly and s.grounded then
-			return false
-		end
-		if not s.stamina:spend(FrameData.staminaCost(move, 0) * 0.35) then
+		if not s.stamina:spend(FrameData.staminaCost(move, 0) * combat.moveStartStaminaFraction) then
 			-- старт мува стоит часть стамины; остальное спишется в активных кадрах
 			s.stamina:spend(s.stamina.value)
-			s.stunFrames = math.max(s.stunFrames, 12)
+			s.stunFrames = math.max(s.stunFrames, combat.exhaustStunFrames)
 			return false
 		end
 		s.move = move
@@ -158,20 +165,32 @@ function M.new(id: string, stats: FighterStats?, player: Player?): FighterState
 		return true
 	end
 
+	-- Нокдаун: дёшево (PlatformStand + Physics), лежим knockdownFrames кадров
 	self.applyKnockdown = function(s: FighterState)
 		s.move = nil
 		s.moveFrame = 0
 		s.phase = "none"
-		s.grounded = true
-		s.getupFrames = 0
 		s.stunFrames = 0
+		s.blocked = false
+		s.blockHeldFrames = 0
+		s.knockdownFrames = combat.knockdownFrames
+		if s.health <= 0 then
+			s.knockdownFrames = combat.koKnockdownFrames
+		end
+		s.invulnFrames = combat.knockdownInvulnFrames
+		local hum = getHumanoid(s)
+		if hum then
+			hum.PlatformStand = true
+			hum:ChangeState(Enum.HumanoidStateType.Physics)
+		end
 	end
 
 	self.consumeHit = function(s: FighterState, result: FrameData.HitResult)
-		local chinMul = FightMath.remap(s.stats.chin, 0, 100, 1.15, 0.85)
+		local balance = Moves.balance()
+		local chinMul = FightMath.remap(s.stats.chin, 0, 100, balance.chinWorst, balance.chinBest)
 		local dmg = result.healthDamage * chinMul
 		if result.knockdown then
-			dmg *= 0.85
+			dmg *= balance.knockdownDamageMul
 		end
 		s.health = math.max(0, s.health - dmg)
 		s.stamina:takeDamage(result.staminaDamage)
@@ -181,15 +200,24 @@ function M.new(id: string, stats: FighterStats?, player: Player?): FighterState
 
 		if result.knockdown and not s.blocked then
 			s:applyKnockdown()
-			s.getupFrames = 90 -- ~1.5 сек лежим, потом встаём
-			s.invulnFrames = 30
 			return
+		end
+
+		-- Супер-армор: попадание в кадры армора не стаггерит и не прерывает
+		local armored = false
+		if s.move and s.phase ~= "none" then
+			local armorFrom, armorTo = FrameData.armorFrames(s.move)
+			if armorFrom and armorTo then
+				if s.moveFrame >= armorFrom and s.moveFrame <= armorTo then
+					armored = true
+				end
+			end
 		end
 
 		-- Прерывание: попадание в замах ломает мув. Это ключевая механика
 		-- файтинга — именно она делает джеб (7 кадров) ответом на медленный
-		-- spinning_back_kick (26 кадров). Без неё выгоднее всегда бить strongest.
-		if result.stunFrames > 0 then
+		-- приём. Без неё выгоднее всегда бить strongest.
+		if result.stunFrames > 0 and not armored then
 			s.stunFrames = math.max(s.stunFrames, result.stunFrames)
 			if wasStartup and not result.blocked then
 				s.move = nil
@@ -217,21 +245,26 @@ function M.new(id: string, stats: FighterStats?, player: Player?): FighterState
 			s.blockHeldFrames += 1
 		elseif s.move then
 			activity = "attacking"
-		elseif s.grounded then
-			activity = "grappling"
 		elseif opponent and s.humanoidRootPart and opponent.humanoidRootPart then
 			activity = "moving"
 		end
 		s.stamina:regen(dt, activity, nil)
 
-		-- нокдаун/вставание
-		if s.grounded and s.getupFrames > 0 then
-			s.getupFrames -= 1
-			if s.getupFrames <= 0 then
-				s.grounded = false
-				s.invulnFrames = 12
-			end
+		-- нокдаун / подъём
+		if s.knockdownFrames > 0 then
+			s.knockdownFrames -= 1
 			s.blockHeldFrames = 0
+			if s.knockdownFrames <= 0 and s.health > 0 then
+				s.knockdownFrames = 0
+				if s.invulnFrames < combat.getupInvulnFrames then
+					s.invulnFrames = combat.getupInvulnFrames
+				end
+				local hum = getHumanoid(s)
+				if hum then
+					hum.PlatformStand = false
+					hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+				end
+			end
 			return
 		end
 
@@ -268,19 +301,18 @@ function M.new(id: string, stats: FighterStats?, player: Player?): FighterState
 		local now = s.tick
 		local kept = {}
 		for _, entry in ipairs(s.inputBuffer) do
-			if now - entry.atFrame <= BUFFER_WINDOW_FRAMES then
+			if now - entry.atFrame <= combat.inputBufferWindowFrames then
 				table.insert(kept, entry)
 			end
 		end
 		s.inputBuffer = kept
 		if #s.inputBuffer > 0 and s:canAct() then
 			local entry = table.remove(s.inputBuffer, 1)
-			s:beginMove(entry.moveId, entry.dir)
+			s:beginMove(entry.moveId)
 		end
 
 		if s.health <= 0 then
-			s.grounded = true
-			s.getupFrames = 10 ^ 6
+			s:applyKnockdown()
 		end
 	end
 
@@ -295,7 +327,7 @@ function M.new(id: string, stats: FighterStats?, player: Player?): FighterState
 			phase = s.phase,
 			stunned = s.stunFrames > 0,
 			blocked = s.blocked,
-			grounded = s.grounded,
+			knockdown = s.knockdownFrames > 0,
 			tick = s.tick,
 		}
 	end

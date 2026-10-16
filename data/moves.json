@@ -1,7 +1,70 @@
 {
-  "$comment": "Фреймдата в стиле UFC 4, 60 fps. startup/active/recovery - в кадрах. Числа стартовые, калибруются видео-замерами (docs/reverse-engineering.md). health - урон 0..100 по полоске здоровья, stamina - урон по выносливости, chipRatio - сколько проходит сквозь блок, knockback - импульс студах/сек.",
-  "version": 3,
+  "$comment": "Тестовая сборка: ТОЛЬКО стойка, 12 приёмов. Фреймдата в стиле UFC 4, 60 fps: startup/active/recovery - в кадрах. ВСЕ числа боя живут здесь: timing/stamina/damage/reaction - по приёмам, combat/balance/stamina/hurtboxes/dummy - общие правила. Код не хардкодит баланс. health - урон 0..100 по полоске здоровья, stamina - урон по выносливости, chipRatio - сколько проходит сквозь блок, knockback - импульс студах/сек.",
+  "version": 4,
   "fps": 60,
+  "combat": {
+    "$comment": "правила боя: буфер ввода, нокдаун, стамина от статов, поворот бойца",
+    "inputBufferWindowFrames": 10,
+    "inputBufferMaxEntries": 3,
+    "moveStartStaminaFraction": 0.35,
+    "exhaustStunFrames": 12,
+    "knockdownFrames": 90,
+    "knockdownInvulnFrames": 30,
+    "getupInvulnFrames": 12,
+    "koKnockdownFrames": 1000000,
+    "turnDegreesPerSecond": 720,
+    "staminaPoolMid": 50,
+    "staminaPerPoolPoint": 0.6,
+    "regenPoolBase": 5.0,
+    "regenPoolSpan": 4.0
+  },
+  "balance": {
+    "$comment": "коэффициенты resolveHit/consumeHit: урон, блок, стаггер, нокдауны",
+    "powerMin": 0.85,
+    "powerSpan": 0.3,
+    "chinWorst": 1.15,
+    "chinBest": 0.85,
+    "blockStaminaMul": 1.35,
+    "blockStunMul": 0.35,
+    "blockHoldGraceFrames": 30,
+    "blockHoldMaxBonus": 0.5,
+    "blockHoldBonusFrames": 120,
+    "stunnedStunMul": 1.25,
+    "blockedKnockdownMul": 0.15,
+    "fatigueKnockdownBonus": 0.45,
+    "knockdownMinStunFrames": 40,
+    "knockdownDamageMul": 0.85,
+    "knockdownKnockbackMul": 1.6
+  },
+  "stamina": {
+    "$comment": "модель выносливости и кривые скорости/урона от усталости",
+    "max": 100,
+    "regenPerSecondIdle": 6.5,
+    "regenPerSecondMoving": 3.2,
+    "regenPerSecondBlocking": 1.4,
+    "regenDelayAfterSprint": 1.6,
+    "exhaustedThreshold": 8,
+    "recoveryTo": 25,
+    "speedBase": 0.7,
+    "speedSpan": 0.3,
+    "speedExhausted": 0.55,
+    "damageBase": 0.75,
+    "damageSpan": 0.25
+  },
+  "hurtboxes": [
+    { "name": "head", "bone": "Head", "size": [1.6, 1.6, 1.6], "level": "high" },
+    { "name": "torso", "bone": "UpperTorso", "size": [2.6, 2.4, 1.6], "level": "mid" },
+    { "name": "legs", "bone": "LowerTorso", "size": [2.2, 2.6, 1.6], "level": "low" }
+  ],
+  "dummy": {
+    "$comment": "настройки манекена (DummyController): режимы static/blocks/fights",
+    "blockRange": 8,
+    "maxAttackDistance": 10,
+    "minStaminaRatio": 0.25,
+    "reachPadding": 2,
+    "strikeCooldownFrames": 24,
+    "strikeCooldownRandomFrames": 20
+  },
   "moves": [
     {
       "id": "jab",
@@ -14,7 +77,7 @@
       "hitbox": { "bone": "RightHand", "size": [1.6, 1.6, 1.6], "offset": [0, 0, -0.6], "reach": 5.2 },
       "hitLevel": "high",
       "cancel": ["cross", "hook_left", "kick_low"],
-      "props": { "movesCharacter": false, "standingOnly": true }
+      "props": { "movesCharacter": false }
     },
     {
       "id": "cross",
@@ -27,7 +90,7 @@
       "hitbox": { "bone": "LeftHand", "size": [1.7, 1.7, 1.7], "offset": [0, 0, -0.7], "reach": 5.6 },
       "hitLevel": "high",
       "cancel": ["hook_right", "kick_body"],
-      "props": { "movesCharacter": true, "standingOnly": true }
+      "props": { "movesCharacter": true }
     },
     {
       "id": "hook_left",
@@ -39,7 +102,7 @@
       "reaction": { "stunFrames": 20, "knockdownChance": 0.07, "floorStamina": 0.35, "knockback": 10 },
       "hitbox": { "bone": "RightHand", "size": [1.8, 1.8, 1.8], "offset": [0.4, 0, -0.5], "reach": 4.6 },
       "hitLevel": "high",
-      "props": { "movesCharacter": true, "standingOnly": true }
+      "props": { "movesCharacter": true }
     },
     {
       "id": "hook_right",
@@ -51,7 +114,7 @@
       "reaction": { "stunFrames": 24, "knockdownChance": 0.12, "floorStamina": 0.35, "knockback": 14 },
       "hitbox": { "bone": "LeftHand", "size": [1.8, 1.8, 1.8], "offset": [-0.4, 0, -0.5], "reach": 4.6 },
       "hitLevel": "high",
-      "props": { "movesCharacter": true, "standingOnly": true }
+      "props": { "movesCharacter": true }
     },
     {
       "id": "uppercut_right",
@@ -63,7 +126,7 @@
       "reaction": { "stunFrames": 22, "knockdownChance": 0.1, "floorStamina": 0.3, "knockback": 9 },
       "hitbox": { "bone": "LeftHand", "size": [1.6, 2.0, 1.6], "offset": [0, 0.5, -0.6], "reach": 4.2 },
       "hitLevel": "high",
-      "props": { "standingOnly": true }
+      "props": {}
     },
     {
       "id": "overhand_right",
@@ -75,7 +138,7 @@
       "reaction": { "stunFrames": 30, "knockdownChance": 0.2, "floorStamina": 0.4, "knockback": 22 },
       "hitbox": { "bone": "LeftHand", "size": [1.9, 1.9, 1.9], "offset": [0, 0.3, -0.8], "reach": 5.4 },
       "hitLevel": "high",
-      "props": { "movesCharacter": true, "standingOnly": true }
+      "props": { "movesCharacter": true, "armorFrames": [22, 26] }
     },
     {
       "id": "kick_low",
@@ -87,7 +150,7 @@
       "reaction": { "stunFrames": 16, "knockdownChance": 0.03, "floorStamina": 0.2, "knockback": 6 },
       "hitbox": { "bone": "RightFoot", "size": [1.6, 1.4, 2.2], "offset": [0, 0, -0.4], "reach": 6.4 },
       "hitLevel": "low",
-      "props": { "standingOnly": true }
+      "props": {}
     },
     {
       "id": "kick_body",
@@ -99,7 +162,7 @@
       "reaction": { "stunFrames": 24, "knockdownChance": 0.08, "floorStamina": 0.3, "knockback": 12 },
       "hitbox": { "bone": "RightFoot", "size": [1.6, 1.6, 2.4], "offset": [0, 0, -0.4], "reach": 7.2 },
       "hitLevel": "mid",
-      "props": { "movesCharacter": true, "standingOnly": true }
+      "props": { "movesCharacter": true }
     },
     {
       "id": "kick_head",
@@ -111,55 +174,7 @@
       "reaction": { "stunFrames": 32, "knockdownChance": 0.3, "floorStamina": 0.45, "knockback": 26 },
       "hitbox": { "bone": "RightFoot", "size": [1.5, 1.5, 2.6], "offset": [0, 0.8, -0.4], "reach": 7.6 },
       "hitLevel": "high",
-      "props": { "movesCharacter": true, "standingOnly": true }
-    },
-    {
-      "id": "spinning_back_kick",
-      "name": "Spinning back kick",
-      "category": "strike",
-      "timing": { "startup": 26, "active": 5, "recovery": 34 },
-      "stamina": { "cost": 22 },
-      "damage": { "health": 30, "stamina": 22, "chipRatio": 0.04 },
-      "reaction": { "stunFrames": 38, "knockdownChance": 0.4, "floorStamina": 0.5, "knockback": 34 },
-      "hitbox": { "bone": "LeftFoot", "size": [1.6, 1.6, 2.8], "offset": [0, 0, 0.6], "reach": 7.4 },
-      "hitLevel": "mid",
-      "props": { "movesCharacter": true, "standingOnly": true }
-    },
-    {
-      "id": "superman_punch",
-      "name": "Superman punch",
-      "category": "strike",
-      "timing": { "startup": 20, "active": 6, "recovery": 30 },
-      "stamina": { "cost": 20 },
-      "damage": { "health": 20, "stamina": 16, "chipRatio": 0.05 },
-      "reaction": { "stunFrames": 26, "knockdownChance": 0.18, "floorStamina": 0.4, "knockback": 20 },
-      "hitbox": { "bone": "LeftHand", "size": [1.8, 1.8, 1.8], "offset": [0, 0, -1.0], "reach": 8.4 },
-      "hitLevel": "high",
-      "props": { "movesCharacter": true, "standingOnly": true }
-    },
-    {
-      "id": "knee_clinch",
-      "name": "Clinch knee",
-      "category": "strike",
-      "timing": { "startup": 12, "active": 4, "recovery": 18 },
-      "stamina": { "cost": 9 },
-      "damage": { "health": 13, "stamina": 14, "chipRatio": 0.06 },
-      "reaction": { "stunFrames": 20, "knockdownChance": 0.06, "floorStamina": 0.3, "knockback": 8 },
-      "hitbox": { "bone": "RightLowerLeg", "size": [1.6, 1.6, 2.4], "offset": [0, 0, -0.8], "reach": 4.2 },
-      "hitLevel": "mid",
-      "props": { "standingOnly": false }
-    },
-    {
-      "id": "elbow_clinch",
-      "name": "Clinch elbow",
-      "category": "strike",
-      "timing": { "startup": 11, "active": 4, "recovery": 16 },
-      "stamina": { "cost": 8 },
-      "damage": { "health": 12, "stamina": 10, "chipRatio": 0.06 },
-      "reaction": { "stunFrames": 18, "knockdownChance": 0.05, "floorStamina": 0.3, "knockback": 6 },
-      "hitbox": { "bone": "RightLowerArm", "size": [1.4, 1.4, 2.0], "offset": [0, 0, -0.7], "reach": 3.8 },
-      "hitLevel": "high",
-      "props": { "standingOnly": false }
+      "props": { "movesCharacter": true }
     },
     {
       "id": "block",
@@ -169,7 +184,7 @@
       "stamina": { "cost": 1, "costPerActiveFrame": 0.12 },
       "damage": { "health": 0, "stamina": 0, "chipRatio": 0 },
       "reaction": { "stunFrames": 0, "knockdownChance": 0, "floorStamina": 0, "knockback": 0 },
-      "props": { "holdToCharge": true, "standingOnly": false }
+      "props": { "holdToCharge": true }
     },
     {
       "id": "slip",
@@ -180,7 +195,7 @@
       "damage": { "health": 0, "stamina": 0, "chipRatio": 0 },
       "reaction": { "stunFrames": 0, "knockdownChance": 0, "floorStamina": 0, "knockback": 0 },
       "cancel": ["cross", "hook_right", "uppercut_right"],
-      "props": { "standingOnly": true }
+      "props": {}
     },
     {
       "id": "duck",
@@ -190,155 +205,8 @@
       "stamina": { "cost": 8 },
       "damage": { "health": 0, "stamina": 0, "chipRatio": 0 },
       "reaction": { "stunFrames": 0, "knockdownChance": 0, "floorStamina": 0, "knockback": 0 },
-      "cancel": ["hook_left", "double_leg"],
-      "props": { "standingOnly": true }
-    },
-    {
-      "id": "double_leg",
-      "name": "Double leg takedown",
-      "category": "grapple",
-      "timing": { "startup": 18, "active": 10, "recovery": 30 },
-      "stamina": { "cost": 20 },
-      "damage": { "health": 4, "stamina": 12, "chipRatio": 0.05 },
-      "reaction": { "stunFrames": 12, "knockdownChance": 0, "floorStamina": 0, "knockback": 14 },
-      "grapple": { "kind": "takedown", "from": ["standing", "clinch"], "to": "guard_top", "power": 70 },
-      "props": { "movesCharacter": true, "standingOnly": true, "armorFrames": [18, 24] }
-    },
-    {
-      "id": "single_leg",
-      "name": "Single leg takedown",
-      "category": "grapple",
-      "timing": { "startup": 14, "active": 8, "recovery": 26 },
-      "stamina": { "cost": 15 },
-      "damage": { "health": 3, "stamina": 10, "chipRatio": 0.05 },
-      "reaction": { "stunFrames": 10, "knockdownChance": 0, "floorStamina": 0, "knockback": 10 },
-      "grapple": { "kind": "takedown", "from": ["standing", "clinch"], "to": "side_top", "power": 55 },
-      "props": { "movesCharacter": true, "standingOnly": true }
-    },
-    {
-      "id": "clinch_trip",
-      "name": "Clinch trip",
-      "category": "grapple",
-      "timing": { "startup": 12, "active": 8, "recovery": 22 },
-      "stamina": { "cost": 12 },
-      "damage": { "health": 3, "stamina": 10, "chipRatio": 0.05 },
-      "reaction": { "stunFrames": 10, "knockdownChance": 0, "floorStamina": 0, "knockback": 8 },
-      "grapple": { "kind": "takedown", "from": ["clinch"], "to": "side_top", "power": 45 },
-      "props": { "standingOnly": true }
-    },
-    {
-      "id": "ground_pound_top",
-      "name": "Ground and pound (top)",
-      "category": "ground_strike",
-      "timing": { "startup": 10, "active": 4, "recovery": 14 },
-      "stamina": { "cost": 7 },
-      "damage": { "health": 9, "stamina": 12, "chipRatio": 0.15 },
-      "reaction": { "stunFrames": 14, "knockdownChance": 0, "floorStamina": 0, "knockback": 2 },
-      "hitbox": { "bone": "LeftHand", "size": [1.6, 1.6, 1.6], "offset": [0, -0.8, 0], "reach": 3.2 },
-      "hitLevel": "high",
-      "grapple": { "kind": "strike", "from": ["guard_top", "side_top", "mount_top"], "power": 60 },
-      "props": { "onGroundOnly": true }
-    },
-    {
-      "id": "ground_punch_bottom",
-      "name": "Punch from bottom",
-      "category": "ground_strike",
-      "timing": { "startup": 14, "active": 4, "recovery": 18 },
-      "stamina": { "cost": 9 },
-      "damage": { "health": 5, "stamina": 10, "chipRatio": 0.15 },
-      "reaction": { "stunFrames": 10, "knockdownChance": 0, "floorStamina": 0, "knockback": 1 },
-      "hitbox": { "bone": "RightHand", "size": [1.5, 1.5, 1.5], "offset": [0, 0.8, 0], "reach": 3.0 },
-      "hitLevel": "high",
-      "grapple": { "kind": "strike", "from": ["guard_bottom", "mount_bottom"], "power": 35 },
-      "props": { "onGroundOnly": true }
-    },
-    {
-      "id": "escape_guard",
-      "name": "Escape / stand up",
-      "category": "grapple",
-      "timing": { "startup": 20, "active": 12, "recovery": 24 },
-      "stamina": { "cost": 18 },
-      "damage": { "health": 0, "stamina": 0, "chipRatio": 0 },
-      "reaction": { "stunFrames": 0, "knockdownChance": 0, "floorStamina": 0, "knockback": 0 },
-      "grapple": { "kind": "escape", "from": ["guard_bottom", "side_bottom", "mount_bottom"], "to": "standing", "power": 50 },
-      "props": { "onGroundOnly": true }
-    },
-    {
-      "id": "sweep_guard",
-      "name": "Sweep from guard",
-      "category": "grapple",
-      "timing": { "startup": 16, "active": 10, "recovery": 20 },
-      "stamina": { "cost": 14 },
-      "damage": { "health": 2, "stamina": 8, "chipRatio": 0 },
-      "reaction": { "stunFrames": 8, "knockdownChance": 0, "floorStamina": 0, "knockback": 0 },
-      "grapple": { "kind": "escape", "from": ["guard_bottom"], "to": "mount_top", "power": 45 },
-      "props": { "onGroundOnly": true }
-    },
-    {
-      "id": "transition_mount",
-      "name": "Advance to mount",
-      "category": "grapple",
-      "timing": { "startup": 18, "active": 10, "recovery": 20 },
-      "stamina": { "cost": 12 },
-      "damage": { "health": 0, "stamina": 6, "chipRatio": 0 },
-      "reaction": { "stunFrames": 0, "knockdownChance": 0, "floorStamina": 0, "knockback": 0 },
-      "grapple": { "kind": "advance", "from": ["side_top", "guard_top"], "to": "mount_top", "power": 55 },
-      "props": { "onGroundOnly": true }
-    },
-    {
-      "id": "armbar_guard",
-      "name": "Armbar from guard",
-      "category": "grapple",
-      "timing": { "startup": 22, "active": 14, "recovery": 26 },
-      "stamina": { "cost": 20 },
-      "damage": { "health": 40, "stamina": 10, "chipRatio": 0 },
-      "reaction": { "stunFrames": 40, "knockdownChance": 0, "floorStamina": 0, "knockback": 0 },
-      "grapple": { "kind": "submit", "from": ["guard_bottom", "mount_bottom"], "to": "standing", "power": 65 },
-      "props": { "onGroundOnly": true }
-    },
-    {
-      "id": "rnc_attempt",
-      "name": "Rear naked choke",
-      "category": "grapple",
-      "timing": { "startup": 20, "active": 30, "recovery": 24 },
-      "stamina": { "cost": 18 },
-      "damage": { "health": 60, "stamina": 8, "chipRatio": 0 },
-      "reaction": { "stunFrames": 60, "knockdownChance": 0, "floorStamina": 0, "knockback": 0 },
-      "grapple": { "kind": "submit", "from": ["back_top"], "to": "standing", "power": 85 },
-      "props": { "onGroundOnly": true }
-    },
-    {
-      "id": "walk_fwd",
-      "name": "Step forward",
-      "category": "movement",
-      "timing": { "startup": 4, "active": 10, "recovery": 4 },
-      "stamina": { "cost": 1.5 },
-      "damage": { "health": 0, "stamina": 0, "chipRatio": 0 },
-      "reaction": { "stunFrames": 0, "knockdownChance": 0, "floorStamina": 0, "knockback": 0 },
-      "cancel": ["jab", "cross", "double_leg"],
-      "props": { "movesCharacter": true, "standingOnly": true }
-    },
-    {
-      "id": "walk_back",
-      "name": "Step back",
-      "category": "movement",
-      "timing": { "startup": 5, "active": 10, "recovery": 5 },
-      "stamina": { "cost": 1.5 },
-      "damage": { "health": 0, "stamina": 0, "chipRatio": 0 },
-      "reaction": { "stunFrames": 0, "knockdownChance": 0, "floorStamina": 0, "knockback": 0 },
-      "cancel": ["jab", "slip"],
-      "props": { "movesCharacter": true, "standingOnly": true }
-    },
-    {
-      "id": "sidestep",
-      "name": "Sidestep (octagon control)",
-      "category": "movement",
-      "timing": { "startup": 6, "active": 12, "recovery": 8 },
-      "stamina": { "cost": 4 },
-      "damage": { "health": 0, "stamina": 0, "chipRatio": 0 },
-      "reaction": { "stunFrames": 0, "knockdownChance": 0, "floorStamina": 0, "knockback": 0 },
-      "cancel": ["cross", "hook_right", "kick_head"],
-      "props": { "movesCharacter": true, "standingOnly": true }
+      "cancel": ["hook_left"],
+      "props": {}
     }
   ]
 }

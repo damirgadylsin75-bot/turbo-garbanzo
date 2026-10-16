@@ -1,50 +1,45 @@
 --!strict
 -- StaminaSystem: стамина - главный ресурс в UFC 4.
--- Наблюдения из игры (калибруются видео-замерами, см. docs/reverse-engineering.md):
+-- Наблюдения из игры:
 --   * удар в блок почти не снимает здоровье, но снимает стамину
---   * при нулевой стамине боец "дышит", двигается медленно, падает от любого хэд-кика
---   * реген зависит от активности: в движении и в клинче почти не восстанавливается
--- Все числа вынесены в CONFIG, чтобы их можно было подгонять нейросетью/балансом.
+--   * при нулевой стамине боец "дышит", двигается медленнее, падает от любого хэд-кика
+--   * реген зависит от активности
+-- Все числа приходят из data/moves.json (секция "stamina") - здесь нет хардкода.
 
 export type StaminaConfig = {
 	max: number,
 	regenPerSecondIdle: number,      -- стоит на месте
 	regenPerSecondMoving: number,    -- ходит
 	regenPerSecondBlocking: number,  -- держит блок
-	regenPerSecondGrappling: number, -- клинч/партер (почти ноль)
 	regenDelayAfterSprint: number,   -- задержка регена после спринта, сек
 	exhaustedThreshold: number,      -- ниже этого - состояние "выдохся"
 	recoveryTo: number,              -- после выдоха восстанавливаемся хотя бы до этого
+	speedBase: number,               -- кривая скорости от стамины
+	speedSpan: number,
+	speedExhausted: number,
+	damageBase: number,              -- кривая урона от стамины
+	damageSpan: number,
 }
 
 export type StaminaModel = {
 	value: number,
+	max: number,
 	exhausted: boolean,
 	recoverTimer: number,
 	spend: ((self: any, amount: number) -> boolean),
 	takeDamage: ((self: any, amount: number) -> ()),
-	regen: ((self: any, dt: number, activity: string, config: StaminaConfig) -> ()),
-	ratio: ((self: any, config: StaminaConfig) -> number),
+	regen: ((self: any, dt: number, activity: string, config: StaminaConfig?) -> ()),
+	ratio: ((self: any, config: StaminaConfig?) -> number),
 }
 
 local M = {}
 
-M.DEFAULT_CONFIG = {
-	max = 100,
-	regenPerSecondIdle = 6.5,
-	regenPerSecondMoving = 3.2,
-	regenPerSecondBlocking = 1.4,
-	regenPerSecondGrappling = 0.4,
-	regenDelayAfterSprint = 1.6,
-	exhaustedThreshold = 8,
-	recoveryTo = 25,
-} :: StaminaConfig
-
-function M.new(config: StaminaConfig?): StaminaModel
-	local cfg = config or M.DEFAULT_CONFIG
+function M.new(config: StaminaConfig): StaminaModel
+	local cfg = config
 	local model
 	model = {
 		value = cfg.max,
+		max = cfg.max,
 		exhausted = false,
 		recoverTimer = 0,
 
@@ -71,7 +66,7 @@ function M.new(config: StaminaConfig?): StaminaModel
 			end
 		end,
 
-		regen = function(self: StaminaModel, dt: number, activity: string, runtimeCfg: StaminaConfig)
+		regen = function(self: StaminaModel, dt: number, activity: string, runtimeCfg: StaminaConfig?)
 			local c = runtimeCfg or cfg
 			if self.recoverTimer > 0 then
 				self.recoverTimer -= dt
@@ -84,8 +79,6 @@ function M.new(config: StaminaConfig?): StaminaModel
 				rate = c.regenPerSecondMoving
 			elseif activity == "blocking" then
 				rate = c.regenPerSecondBlocking
-			elseif activity == "grappling" then
-				rate = c.regenPerSecondGrappling
 			else
 				rate = c.regenPerSecondIdle * 0.5
 			end
@@ -110,21 +103,19 @@ function M.new(config: StaminaConfig?): StaminaModel
 	return model
 end
 
--- Множитель скорости от усталости (0.55..1.0). Именно он делает "тяжёлые" 3-й раунды.
-function M.speedMultiplier(model: StaminaModel, config: StaminaConfig?): number
-	local cfg = config or M.DEFAULT_CONFIG
-	local ratio = model.value / cfg.max
+-- Множитель скорости от усталости. Именно он делает "тяжёлые" 3-е раунды.
+function M.speedMultiplier(model: StaminaModel, config: StaminaConfig): number
 	if model.exhausted then
-		return 0.55
+		return config.speedExhausted
 	end
-	return 0.70 + 0.30 * math.clamp(ratio, 0, 1)
+	local ratio = model.value / config.max
+	return config.speedBase + config.speedSpan * math.clamp(ratio, 0, 1)
 end
 
 -- Штраф к урону уставшего бойца
-function M.damageMultiplier(model: StaminaModel, config: StaminaConfig?): number
-	local cfg = config or M.DEFAULT_CONFIG
-	local ratio = model.value / cfg.max
-	return 0.75 + 0.25 * math.clamp(ratio, 0, 1)
+function M.damageMultiplier(model: StaminaModel, config: StaminaConfig): number
+	local ratio = model.value / config.max
+	return config.damageBase + config.damageSpan * math.clamp(ratio, 0, 1)
 end
 
 return M

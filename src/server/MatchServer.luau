@@ -1,10 +1,12 @@
 --!strict
--- MatchServer: авторитетный симулятор боя с фиксированным шагом.
+-- MatchServer: авторитетный симулятор боя с фиксированным шагом (только стойка).
 --
 -- Почему фиксированный шаг обязателен: весь файтинг построен на кадрах.
 -- Если гонять логику в Heartbeat с плавающим dt, комбо и окна отмены "поплывут"
 -- на разных машинах. Поэтому: сервер считает 60 тиков в секунду, а визуал
 -- клиента интерполируется между снапшотами.
+--
+-- Клиент шлёт ТОЛЬКО {action, moveId}. Урон, тайминги и позиции считаются здесь.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,17 +20,17 @@ local Moves = require(Shared:WaitForChild("Moves"))
 local Server = script.Parent
 local FighterState = require(Server:WaitForChild("FighterState"))
 local HitboxSystem = require(Server:WaitForChild("HitboxSystem"))
-local GrappleSystem = require(Server:WaitForChild("GrappleSystem"))
 
 local M = {}
 
 local fighters: { [string]: FighterState.FighterState } = {}
 local order: { string } = {}
-local grapple = GrappleSystem.new()
 local accumulator = 0
 local started = false
 local snapshotTimer = 0
 local SNAPSHOT_INTERVAL = 1 / 30 -- 30 Гц снапшотов на клиентов
+local MIN_INTENT_INTERVAL = 1 / 30 -- античит: не чаще 30 намерений в секунду
+local rate: { [Player]: number } = {}
 
 local evInput = Remotes.event("FighterInput")
 local evSnapshot = Remotes.event("FightSnapshot")
@@ -67,7 +69,7 @@ function M.addFighter(player: Player, stats: FighterState.FighterStats?)
 	return state
 end
 
--- Регистрация уже собранного FighterState (используется для ботов)
+-- Регистрация уже собранного FighterState (используется для манекена)
 function M.registerFighter(state: FighterState.FighterState)
 	if fighters[state.id] then
 		return state
@@ -77,8 +79,7 @@ function M.registerFighter(state: FighterState.FighterState)
 	return state
 end
 
--- Ввод от бота идёт по тому же пути, что и от игрока: никаких привилегий.
--- Это важно - если заменить BotController на RL-агента, код менять не придётся.
+-- Ввод от манекена идёт по тому же пути, что и от игрока: никаких привилегий.
 function M.handleInputBot(fighterId: string, payload: { [string]: any })
 	local state = fighters[fighterId]
 	if not state then
@@ -103,6 +104,7 @@ local function resolveCollisions()
 	if #list < 2 then
 		return
 	end
+	local balance = Moves.balance()
 	for i = 1, #list do
 		local a = list[i]
 		for j = i + 1, #list do
@@ -126,11 +128,10 @@ local function resolveCollisions()
 						blocked = b.blocked,
 						blockHeldFrames = b.blockHeldFrames,
 						stamina = b.stamina.value,
-						maxStamina = 100,
+						maxStamina = b.stamina.max,
 						stunned = b.stunFrames > 0,
 						directionToDefender = dir,
-						grounded = b.grounded,
-					})
+					}, balance)
 					b:consumeHit(result)
 					a.hitConsumed = true
 
@@ -147,7 +148,6 @@ local function resolveCollisions()
 					})
 
 					if result.knockdown then
-						b:applyKnockdown()
 						evKnockdown:FireAllClients({ victimId = b.id, position = b.humanoidRootPart.Position })
 					elseif result.knockback > 0 and b.humanoidRootPart then
 						b.humanoidRootPart.AssemblyLinearVelocity = dir * result.knockback + Vector3.new(0, result.knockback * 0.15, 0)
@@ -164,11 +164,10 @@ local function resolveCollisions()
 						blocked = a.blocked,
 						blockHeldFrames = a.blockHeldFrames,
 						stamina = a.stamina.value,
-						maxStamina = 100,
+						maxStamina = a.stamina.max,
 						stunned = a.stunFrames > 0,
 						directionToDefender = dir,
-						grounded = a.grounded,
-					})
+					}, balance)
 					a:consumeHit(result)
 					b.hitConsumed = true
 
@@ -183,17 +182,19 @@ local function resolveCollisions()
 						direction = { dir.X, dir.Y, dir.Z },
 						magnitude = result.knockback,
 					})
-				end
-			end
 
-			-- греппл: клинч по дистанции
-			if grapple.position == "standing" and GrappleSystem.inTakedownRange(a.humanoidRootPart, b.humanoidRootPart) then
-				-- клинч входит только если кто-то нажал grab
+					if result.knockdown then
+						evKnockdown:FireAllClients({ victimId = a.id, position = a.humanoidRootPart.Position })
+					elseif result.knockback > 0 and a.humanoidRootPart then
+						a.humanoidRootPart.AssemblyLinearVelocity = dir * result.knockback + Vector3.new(0, result.knockback * 0.15, 0)
+					end
+				end
 			end
 		end
 	end
 
-	-- сброс флага "попал" при выходе из активных кадров
+	-- сброс флага "попал" при выходе из активных кадров:
+	-- один мув = одно попадание
 	for _, f in ipairs(list) do
 		if f.move and f.phase ~= "active" then
 			f.hitConsumed = false
@@ -214,11 +215,6 @@ local function simulate(dt: number)
 	end
 	resolveCollisions()
 
-	-- греппл-сессия
-	if #list >= 2 then
-		grapple:update(dt, list[1], list[2])
-	end
-
 	-- снапшот клиентам (30 Гц достаточно для визуала)
 	snapshotTimer += dt
 	if snapshotTimer >= SNAPSHOT_INTERVAL then
@@ -227,7 +223,7 @@ local function simulate(dt: number)
 		for _, f in ipairs(list) do
 			table.insert(snap, f:snapshot())
 		end
-		evSnapshot:FireAllClients({ fighters = snap, grapple = grapple.position })
+		evSnapshot:FireAllClients({ fighters = snap })
 	end
 end
 
@@ -248,66 +244,32 @@ function M.start()
 	end)
 end
 
--- Единственная точка применения "намерения" (от игрока или от бота).
--- Ничего, кроме moveId/action, сервер от клиента не принимает - урон,
--- позиции и тайминги считаются только здесь.
+-- Единственная точка применения "намерения" (от игрока или от манекена).
+-- Клиент шлёт ТОЛЬКО {action, moveId}: урон, позиции и тайминги считаются
+-- только здесь. moveId валидируется через Moves.isValid.
 function M.applyIntent(state: FighterState.FighterState, payload: { [string]: any })
 	local action = payload.action
+	local moveId = payload.moveId
 	if typeof(action) ~= "string" then
+		return
+	end
+	if not Moves.isValid(moveId) then
 		return
 	end
 
 	if action == "block" then
-		state.blocked = payload.held == true
-		if not state.blocked then
-			state.blockHeldFrames = 0
-		end
+		state.blocked = true
 		return
 	end
 
-	if action == "move" then
-		local d = payload.dir
-		state.moveIntent = Vector3.zero
-		if typeof(d) == "table" then
-			state.moveIntent = Vector3.new(tonumber(d[1]) or 0, 0, tonumber(d[3]) or 0)
-		end
-		return
-	end
-
-	local moveId = payload.moveId
-	if typeof(moveId) ~= "string" then
-		return
-	end
-	local move = Moves.get(moveId)
-	if not move then
-		return
-	end
-
-	if action == "grapple" then
-		local opp
-		for _, f in ipairs(M.getFighters()) do
-			if f ~= state then
-				opp = f
-			end
-		end
-		if not opp or not move.grapple then
-			return
-		end
-		if grapple.position == "standing" and move.grapple.kind == "takedown" then
-			grapple:attempt(state, opp, move)
-		else
-			state:beginMove(moveId)
-		end
+	if action == "unblock" then
+		state.blocked = false
+		state.blockHeldFrames = 0
 		return
 	end
 
 	if action == "strike" or action == "defense" then
-		local d = payload.dir
-		local dir = Vector3.zero
-		if typeof(d) == "table" then
-			dir = Vector3.new(tonumber(d[1]) or 0, 0, tonumber(d[3]) or 0)
-		end
-		state:beginMove(moveId, dir)
+		state:beginMove(moveId)
 	end
 end
 
@@ -319,10 +281,6 @@ function M.handleInput(player: Player, payload: { [string]: any })
 	M.applyIntent(state, payload)
 end
 
-function M.grapple()
-	return grapple
-end
-
 evInput.OnServerEvent:Connect(function(player, payload)
 	if typeof(payload) ~= "table" then
 		return
@@ -332,12 +290,11 @@ evInput.OnServerEvent:Connect(function(player, payload)
 	end
 	-- простейший античит: не чаще 30 намерений в секунду
 	local now = os.clock()
-	local last = M._rate and M._rate[player] or 0
-	if now - last < 0.033 then
+	local last = rate[player] or 0
+	if now - last < MIN_INTENT_INTERVAL then
 		return
 	end
-	M._rate = M._rate or {}
-	M._rate[player] = now
+	rate[player] = now
 	M.handleInput(player, payload)
 end)
 

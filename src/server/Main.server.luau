@@ -1,5 +1,7 @@
 --!strict
--- Серверная точка входа: поднимает бой, бота и дебаг-команды.
+-- Серверная точка входа: поднимает бой, манекен и дебаг-команды.
+-- Тестовая сборка: только стойка, соперник - неподвижный манекен
+-- (DummyController, режимы через workspace-атрибут "FightDummyMode").
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10,8 +12,9 @@ local FrameData = require(Shared:WaitForChild("FrameData"))
 
 local Server = script.Parent
 local MatchServer = require(Server:WaitForChild("MatchServer"))
-local BotController = require(Server:WaitForChild("BotController"))
+local DummyController = require(Server:WaitForChild("DummyController"))
 local FighterState = require(Server:WaitForChild("FighterState"))
+local HitboxSystem = require(Server:WaitForChild("HitboxSystem"))
 
 -- 1. Собираем статистику бойцов из data/fighters.json
 local function loadFighterStats(): { [string]: FighterState.FighterStats }
@@ -27,21 +30,21 @@ end
 
 local statsTable = loadFighterStats()
 
--- 2. Подключаем игрока + бота, чтобы можно было тестить в одиночку
-local function spawnBotIfSolo()
+-- 2. Спавним манекен, чтобы можно было тестить в одиночку
+local function spawnDummyIfSolo()
 	local fighters = MatchServer.getFighters()
 	if #fighters >= 2 then
 		return
 	end
-	local botStats = statsTable.bot or statsTable.default or FighterState.DEFAULT_STATS
-	local bot = FighterState.new("BOT", botStats, nil)
-	MatchServer.registerFighter(bot)
+	local dummyStats = statsTable.bot or statsTable.default or FighterState.DEFAULT_STATS
+	local dummy = FighterState.new("DUMMY", dummyStats, nil)
+	MatchServer.registerFighter(dummy)
 
-	-- телом бота делаем копию персонажа первого игрока (или простой R15 из Studio)
+	-- телом манекена делаем копию персонажа первого игрока (R15)
 	local first = fighters[1]
 	if first and first.character then
 		local clone = first.character:Clone()
-		clone.Name = "BotCharacter"
+		clone.Name = "FightDummy"
 		for _, d in ipairs(clone:GetDescendants()) do
 			if d:IsA("BasePart") then
 				d.Transparency = math.min(0.6, d.Transparency)
@@ -52,18 +55,18 @@ local function spawnBotIfSolo()
 		if hrp and first.humanoidRootPart then
 			clone:PivotTo(first.humanoidRootPart.CFrame * CFrame.new(0, 0, -8))
 		end
-		bot.character = clone
-		bot.humanoidRootPart = clone:FindFirstChild("HumanoidRootPart") :: BasePart?
+		dummy.character = clone
+		dummy.humanoidRootPart = clone:FindFirstChild("HumanoidRootPart") :: BasePart?
 		local hum = clone:FindFirstChildOfClass("Humanoid")
 		if hum then
 			hum.MaxHealth = 100000
 			hum.Health = 100000
+			hum.AutoRotate = false
 		end
-		local HitboxSystem = require(Server:WaitForChild("HitboxSystem"))
 		HitboxSystem.buildHurtboxes(clone)
 	end
 
-	BotController.attach(bot.id, BotController.DEFAULT_CONFIG)
+	DummyController.attach(dummy.id)
 	MatchServer.start()
 end
 
@@ -72,7 +75,7 @@ Players.PlayerAdded:Connect(function(player)
 	local stats = statsTable[player.Name] or statsTable.default or FighterState.DEFAULT_STATS
 	MatchServer.addFighter(player, stats)
 	task.wait(1)
-	spawnBotIfSolo()
+	spawnDummyIfSolo()
 end)
 
 for _, p in ipairs(Players:GetPlayers()) do
@@ -81,15 +84,15 @@ for _, p in ipairs(Players:GetPlayers()) do
 	end
 end
 
--- 3. Тик бота в серверном цикле (тот же шаг, что и симуляция)
-local botAccumulator = 0
+-- 3. Тик манекена в серверном цикле (тот же шаг, что и симуляция)
+local dummyAccumulator = 0
 RunService.Heartbeat:Connect(function(dt)
-	botAccumulator += dt
+	dummyAccumulator += dt
 	local step = FrameData.FRAME
 	local guard = 0
-	while botAccumulator >= step and guard < 5 do
-		BotController.tick(step)
-		botAccumulator -= step
+	while dummyAccumulator >= step and guard < 5 do
+		DummyController.tick(step)
+		dummyAccumulator -= step
 		guard += 1
 	end
 end)
@@ -99,9 +102,9 @@ workspace:GetAttributeChangedSignal("FightDebugHitboxes"):Connect(function()
 	local visible = workspace:GetAttribute("FightDebugHitboxes") == true
 	for _, f in ipairs(MatchServer.getFighters()) do
 		if f.character then
-			require(Server:WaitForChild("HitboxSystem")).setDebugVisible(f.character, visible)
+			HitboxSystem.setDebugVisible(f.character, visible)
 		end
 	end
 end)
 
-print("[turbo-garbanzo] server ready")
+print("[turbo-garbanzo] server ready (test build: standing only)")
