@@ -1,105 +1,34 @@
-# ROADMAP — что вырезано из тестовой сборки и как вернуть
+# ROADMAP — тестовая сборка → полноценный файтинг
 
-Сейчас в `main` — **быстрая тестовая сборка: только стойка** (12 приёмов, манекен).
-Полная MMA-версия (29 приёмов, греппл, партер, ИИ-бот, тесты, калибровка) была в
-истории git до вырезания. Этот документ фиксирует, **что именно удалено** и **как
-это вернуть**, когда понадобится.
+Сейчас реализована тестовая сборка **только стойки**. Удалённые компоненты сохранены в git-истории; вернуть их можно точечно, не откатывая весь проект.
 
----
+## Что вырезано и как вернуть
 
-## Что вырезано
+Удалены: `src/server/GrappleSystem.luau`, `src/shared/StateMachine.luau`, `src/client/Prediction.luau`, `src/server/BotController.luau`, `tools/pose_extract.py`, `tools/calibrate.py`, `tools/simulate.py`, `tests/`, `docs/ai-workflow.md`, `docs/reverse-engineering.md`. Из `moves.json` удалены приёмы партерa/греппла/передвижения и связанные поля. Состояния `grounded` и `getupFrames` удалены; нокдаун теперь использует `PlatformStand` и `Physics`.
 
-### Файлы удалены целиком
-
-| Файл | Что делал |
-|---|---|
-| `src/server/GrappleSystem.luau` | греппл целиком: тейкдауны, клинч, позиции guard/side/mount/back, сабмишены, свипы, эскейпы |
-| `src/shared/StateMachine.luau` | универсальный конечный автомат (не использовался — мёртвый вес) |
-| `src/client/Prediction.luau` | предсказание анимаций + реконсиляция со снапшотами (для тестов с манекеном не нужно) |
-| `src/server/BotController.luau` | ИИ-соперник с контролем дистанции и скорингом мувов (заменён на `DummyController.luau`) |
-| `tools/pose_extract.py` | видео → CSV скелета (MediaPipe) |
-| `tools/calibrate.py` | CSV → замеры startup/active/recovery + валидация JSON |
-| `tools/simulate.py` | headless-симулятор боёв → CSV для автобаланса |
-| `tests/` (2 файла) | тесты FrameData/стамины (требуют внешний TestEZ) |
-| `docs/ai-workflow.md` | вайбкодинг нейросетями: промпты, пайплайны, RL-агент |
-| `docs/reverse-engineering.md` | методика замеров UFC 4 по кадрам |
-
-### Из `data/moves.json` убрано 17 приёмов
-
-- удары: `spinning_back_kick`, `superman_punch`, `knee_clinch`, `elbow_clinch`;
-- греппл: `double_leg`, `single_leg`, `clinch_trip`, `escape_guard`, `sweep_guard`, `transition_mount`, `armbar_guard`, `rnc_attempt`;
-- партер: `ground_pound_top`, `ground_punch_bottom`;
-- движение: `walk_fwd`, `walk_back`, `sidestep`.
-
-Плюс убраны поля `props.standingOnly` / `props.onGroundOnly` и все блоки `grapple`
-у приёмов. Остались ровно 12 приёмов стойки: `jab`, `cross`, `hook_left`,
-`hook_right`, `uppercut_right`, `overhand_right`, `kick_low`, `kick_body`,
-`kick_head`, `block`, `slip`, `duck`.
-
-### Из кода убрано
-
-- `FighterState`: поля `grounded` / `getupFrames` (оставлен `knockdownFrames`), нокдаун переписан на дешёвый `PlatformStand` + `ChangeState(Physics)`;
-- `MatchServer`: греппл-сессия, action `grapple`, action `move` (направления). Клиент теперь шлёт **только** `{action, moveId}`;
-- `Moves.luau`: `groundStrikes()` / `takedowns()` (добавлены `Moves.isValid`, `Moves.defensive`, загрузка секций настроек);
-- `StaminaSystem`: реген в клинче (`regenPerSecondGrappling`);
-- `FrameData`: тип `GrappleSpec`, поле `grounded` у защитника.
-
-### Сохранено (не трогать при возврате!)
-
-- буфер ввода, окна отмены, супер-армор, прерывание **только замаха**;
-- фиксированный шаг 60 Гц, античит по частоте намерений, `Moves.isValid`, «один мув = одно попадание»;
-- все числа боя — в `data/moves.json` (секции `combat` / `balance` / `stamina` / `hurtboxes` / `dummy`);
-- только R15: хитбоксы `RightHand`/`LeftHand`/`RightFoot`, хуртбоксы `Head`/`UpperTorso`/`LowerTorso`.
-
----
-
-## Как вернуть из истории git
-
-Последний коммит с полной версией — это точка слияния полной версии в `main`:
-
-```
-5e2ad812071a801dc4ba2d601d9eed04c107f89c  (Merge pull request #1)
-```
-
-Все удалённые файлы лежат в нём целиком. Вернуть файл:
+Полная версия находилась в истории до упрощения, базовый известный срез — `5e2ad812071a801dc4ba2d601d9eed04c107f89c`. Посмотреть файл без изменения текущего дерева:
 
 ```bash
-git checkout 5e2ad81 -- src/server/GrappleSystem.luau
-git checkout 5e2ad81 -- tests/ tools/simulate.py docs/ai-workflow.md
+git show 5e2ad81:src/server/GrappleSystem.luau
+git show 5e2ad81:data/moves.json
+git log --oneline --all
 ```
 
-Посмотреть, каким был старый код:
+Вернуть отдельные материалы в рабочую ветку (проверив совместимость с текущим API):
 
 ```bash
-git show 5e2ad81:src/server/BotController.luau
-git show 5e2ad81:data/moves.json          # все 29 приёмов
-git log --oneline --all                    # найти нужный срез по дате/описанию
+git checkout 5e2ad81 -- src/server/GrappleSystem.luau src/shared/StateMachine.luau
 ```
 
-Вернуть **файл целиком на старую версию** (перезаписав текущую):
+Prediction и BotController тоже доступны через `git show 5e2ad81:<путь>`. Не заменяй вслепую текущие `MatchServer`, `FighterState`, `FrameData` и `moves.json`: их контракты изменены. Инструменты и тесты зависят от внешнего TestEZ; прежняя привязка тестов в `default.project.json` намеренно удалена. `tools/luau_syntax_check.py` оставлен.
 
-```bash
-git checkout 5e2ad81 -- src/server/MatchServer.luau
-```
+## Следующие этапы (не входят в текущую сборку)
 
-### Порядок возврата (рекомендуемый)
-
-1. **Стейт-машина и греппл-граф**: `git checkout 5e2ad81 -- src/server/GrappleSystem.luau src/shared/StateMachine.luau` — но учти, что `FighterState` потерял `grounded`/`getupFrames`; их придётся вернуть либо из того же коммита, либо вручную.
-2. **Приёмы**: вытащить из `git show 5e2ad81:data/moves.json` нужные блоки и вклеить в текущий `moves.json` (не забыть вернуть поля `grapple` / `standingOnly` / `onGroundOnly` и тип `GrappleSpec` в `FrameData.luau`).
-3. **MatchServer**: вернуть греппл-сессию и action `grapple` (`git show 5e2ad81:src/server/MatchServer.luau` как референс).
-4. **Prediction**: `git checkout 5e2ad81 -- src/client/Prediction.luau`, подключить в `Main.client.luau` (он дёргает `AnimDriver` по снапшотам).
-5. **BotController**: вернуть вместо/рядом с `DummyController.luau` (у него тот же контракт ввода — `MatchServer.handleInputBot`).
-6. **Инструменты и тесты**: `git checkout 5e2ad81 -- tools/ tests/` + положить [TestEZ](https://github.com/Roblox/testez) в `ReplicatedStorage.TestEZ`; не забыть вернуть `ServerStorage/Tests` в `default.project.json`.
-7. **Документы**: `git checkout 5e2ad81 -- docs/ai-workflow.md docs/reverse-engineering.md`.
-
-⚠️ Файл `tools/luau_syntax_check.py` **не удалялся** — проверка `python3 tools/luau_syntax_check.py` должна выдавать OK на каждом шаге возврата.
-
----
-
-## Куда дальше (после возврата полной версии)
-
-1. **Раунды и таймер** (5×5 мин, перерывы, судейские записки).
-2. **Ragdoll при нокдауне** (BallSocketConstraint на суставы R15 + отключение Motor6D).
-3. **Клинч как отдельная позиция** с борьбой за контроль.
-4. **RL-агент** вместо `BotController`/`DummyController` (контракт тот же — шлёт `{action, moveId}`).
-5. **Своя 3D-модель бойца** (Blender → R15-риг).
+1. **Полноценный ragdoll:** заранее создать Motor6D/BallSocketConstraint-конфигурацию при спавне; выключать Motor6D при падении, переводить Humanoid в `Physics`, импульс прикладывать со смещением от центра масс, клампить его; убрать самоколлизии кистей/стоп и blend ragdoll → getup-анимация около 0,5 с.
+2. **IK-реакции:** IKControl работает на клиенте. Сервер отправляет `HitReact{hitVector, magnitude, bone}`, клиент своего персонажа отклоняет на 25–35° с низким Weight; нужен приваренный target Part, отключение IK в ragdoll и крутка UpperTorso.
+3. **Греппл:** граф состояний standing → clinch → guard/side/mount/back с contest «атака против защиты», поправкой на стамину и окном защиты около 0,42 с. Не симулировать партер как RigidBody-бои.
+4. **Раунды:** таймер 5×5, условия победы, перерывы и судейские записки.
+5. **Swept raycast-хитбоксы:** заменить box overlap на 2–3 луча на конечность от позиции кадра N−1 до N, чтобы быстрые удары не проходили сквозь цель.
+6. **Свой мувмент:** восемь направлений относительно соперника (вперёд/назад/сайдстеп) с инерцией вместо стандартного контроллера Roblox.
+7. **PvP netcode:** вернуть клиентское предсказание и серверную реконсиляцию по снапшотам; старый `src/client/Prediction.luau` — исторический референс, не готовый модуль для подключения без адаптации.
+8. **Калибровка по видео и автобаланс:** 60 fps → MediaPipe/OpenCV → CSV скелета → пик скорости конечности/кадр контакта → startup/active/recovery в moves.json → headless-симуляция тысяч боёв и CSV для баланса. Только наблюдение и собственная реализация: не использовать ассеты, анимации, модели, имена бойцов или логотипы UFC 4.

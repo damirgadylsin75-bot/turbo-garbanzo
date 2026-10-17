@@ -17,8 +17,9 @@ local evHit = Remotes.event("HitFX")
 local evKnockdown = Remotes.event("KnockdownFX")
 
 M.CONFIG = {
-	hitstopFrames = 3,          -- кадров паузы на обычном попадании
-	heavyHitstopFrames = 6,     -- на нокауте
+	blockHitstopFrames = 1,      -- короткая пауза при блоке
+	hitstopFrames = 3,          -- обычное попадание
+	heavyHitstopFrames = 6,     -- на нокдауне
 	impactSoundId = "rbxassetid://0", -- поставь свой id
 	sweatEnabled = true,
 }
@@ -101,7 +102,12 @@ function M.start()
 		spawnImpact(pos, dir, payload.blocked == true, payload.knockdown == true)
 
 		-- hitstop: замедляем анимации на пару кадров
-		local frames = payload.knockdown and M.CONFIG.heavyHitstopFrames or M.CONFIG.hitstopFrames
+		local frames = M.CONFIG.hitstopFrames
+		if payload.knockdown then
+			frames = M.CONFIG.heavyHitstopFrames
+		elseif payload.blocked then
+			frames = M.CONFIG.blockHitstopFrames
+		end
 		hitstopUntil = os.clock() + frames / 60
 	end)
 

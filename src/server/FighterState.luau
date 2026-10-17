@@ -1,7 +1,7 @@
 --!strict
 -- FighterState: состояние одного бойца на сервере (авторитет).
 -- Сервер гоняет это в fixed-timestep цикле 60 Гц (см. MatchServer).
--- Тестовая сборка (только стойка): нет grounded/getupFrames - есть knockdownFrames.
+-- Тестовая сборка (только стойка): без партерных состояний - есть knockdownFrames.
 -- Нокдаун дёшевый: Humanoid.PlatformStand = true + ChangeState(Physics),
 -- при подъёме - ChangeState(GettingUp).
 -- Сохранено: буфер ввода, окна отмены, супер-армор, прерывание ТОЛЬКО замаха.
@@ -18,9 +18,6 @@ local Moves = require(Shared:WaitForChild("Moves"))
 export type FighterStats = {
 	punchPower: number,
 	kickPower: number,
-	groundPound: number,
-	grappleOffense: number,
-	grappleDefense: number,
 	speed: number,
 	chin: number, -- устойчивость к нокдаунам
 	staminaPool: number,
@@ -71,9 +68,6 @@ local M = {}
 M.DEFAULT_STATS = {
 	punchPower = 65,
 	kickPower = 60,
-	groundPound = 55,
-	grappleOffense = 60,
-	grappleDefense = 60,
 	speed = 60,
 	chin = 60,
 	staminaPool = 60,

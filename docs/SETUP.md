@@ -80,12 +80,10 @@ C:\rojo\rojo.exe --version
 ```bash
 git clone https://github.com/damirgadylsin75-bot/turbo-garbanzo.git
 cd turbo-garbanzo
-git checkout arena/f06d83fb-turbo-garbanzo
+git checkout arena/afbcf97a-turbo-garbanzo
 ```
 
-⚠️ **Важно про ветку.** Сейчас весь код лежит в ветке `arena/f06d83fb-turbo-garbanzo`,
-а не в `main`. В `main` пока пустой README. Я могу смержить PR в `main` — тогда
-переключаться между ветками не придётся. Скажи, и я смержу.
+⚠️ **Важно про ветку.** Рабочая ветка этой сессии: `arena/afbcf97a-turbo-garbanzo`. Переключись на неё в GitHub Desktop и получай правки через Pull origin. Не переключайся на main для тестирования.
 
 Если репозиторий станет приватным — GitHub Desktop попросит авторизоваться,
 это нормально, просто войди в аккаунт.
@@ -212,7 +210,7 @@ M.ANIMATIONS = {
 - Анимации должны быть в твоём аккаунте или публичными, иначе Studio их не загрузит
 
 Список нужных для тестовой версии: `jab`, `cross`, `hook_left`, `hook_right`,
-`kick_low`, `kick_body`, `kick_head`, `block`, `slip`, `knockdown`, `getup`.
+`uppercut_right`, `overhand_right`, `kick_low`, `kick_body`, `kick_head`, `block`, `slip`, `duck`, `knockdown`, `getup`, `idle`.
 
 ---
 
