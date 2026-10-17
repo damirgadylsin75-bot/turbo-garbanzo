@@ -4,9 +4,8 @@
 -- Тестовая сборка: 12 приёмов стойки + общие секции combat/balance/stamina/
 -- hurtboxes/dummy. Все игровые числа берутся отсюда, не из кода.
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local FrameData = require(script.Parent.FrameData)
+local MoveData = require(script.Parent:WaitForChild("MoveData"))
 export type MoveDef = FrameData.MoveDef
 
 local M = {}
@@ -28,9 +27,8 @@ local function load()
 	end
 	loaded = true
 
-	local folder = ReplicatedStorage:WaitForChild("FightData")
-	local asset = folder:WaitForChild("moves") :: JsonStringValue
-	local decoded = game:GetService("HttpService"):JSONDecode(asset.Value)
+	-- Rojo may interpret raw .json as a Model; the generated Luau module safely carries its JSON text.
+	local decoded = MoveData
 
 	-- общие секции настроек (все числа боя - в JSON)
 	settings.combat = decoded.combat or settings.combat

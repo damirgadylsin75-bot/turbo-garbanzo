@@ -11,6 +11,7 @@ local Remotes = require(Shared:WaitForChild("Remotes"))
 local M = {}
 
 local evSnapshot = Remotes.event("FightSnapshot")
+local evArena = Remotes.event("ArenaSession")
 local player = Players.LocalPlayer
 
 local gui: ScreenGui? = nil
@@ -77,7 +78,14 @@ function M.start()
 	gui.Name = "FightHUD"
 	gui.ResetOnSpawn = false
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	gui.Enabled = false
 	gui.Parent = pg
+
+	evArena.OnClientEvent:Connect(function(payload)
+		if gui and typeof(payload) == "table" then
+			gui.Enabled = payload.active == true
+		end
+	end)
 
 	buildSide("L", 1)
 	buildSide("R", 2)

@@ -5,8 +5,7 @@
 
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
-      "Shared": { "$path": "src/shared" },
-      "FightData": { "$path": "data" }
+      "Shared": { "$path": "src/shared" }
     },
 
     "ServerScriptService": {

@@ -2,31 +2,18 @@
 -- Основная точка входа сервера: игроки регистрируются, арена создаётся один раз.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local FrameData = require(Shared:WaitForChild("FrameData"))
+local FighterData = require(Shared:WaitForChild("FighterData"))
 local Server = script.Parent
 local MatchServer = require(Server:WaitForChild("MatchServer"))
 local FighterState = require(Server:WaitForChild("FighterState"))
 local HitboxSystem = require(Server:WaitForChild("HitboxSystem"))
 local RinkArena = require(Server:WaitForChild("RinkArena"))
 
-local function loadFighterStats(): { [string]: any }
-	local folder = ReplicatedStorage:WaitForChild("FightData")
-	local asset = folder:WaitForChild("fighters", 5)
-	if not asset or not asset:IsA("JsonStringValue") then
-		return { default = FighterState.DEFAULT_STATS, dummy = FighterState.DEFAULT_STATS }
-	end
-	local ok, decoded = pcall(function()
-		return game:GetService("HttpService"):JSONDecode((asset :: JsonStringValue).Value)
-	end)
-	if ok and decoded and decoded.fighters then
-		return decoded.fighters
-	end
-	return { default = FighterState.DEFAULT_STATS, dummy = FighterState.DEFAULT_STATS }
-end
-
-local statsTable = loadFighterStats()
+local statsTable = FighterData.fighters or {
+	default = FighterState.DEFAULT_STATS,
+	dummy = FighterState.DEFAULT_STATS,
+}
 local function registerPlayer(player: Player)
 	local character = player.Character or player.CharacterAdded:Wait()
 	local stats = statsTable[player.Name] or statsTable.default or FighterState.DEFAULT_STATS

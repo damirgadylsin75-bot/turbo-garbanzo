@@ -132,8 +132,8 @@ Rojo server listening on port 34872
 
 ```
 ReplicatedStorage
-  ├── Shared        <- FrameData, StaminaSystem, Moves, ...
-  └── FightData     <- moves.json, fighters.json
+  └── Shared        <- FrameData, StaminaSystem, Moves, MoveData, FighterData, ...
+(Server data/) <- moves.json и fighters.json остаются файлами проекта; не синхронизируются как Roblox-модели.
 ServerScriptService
   └── Server        <- MatchServer, FighterState, HitboxSystem, RinkArena, ...
 StarterPlayer

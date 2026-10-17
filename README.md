@@ -27,7 +27,7 @@ Roblox-физика используется **только** для knockback-�
 - только **R15**: хитбоксы варятся к костям `RightHand` / `LeftHand` / `RightFoot`, хуртбоксы — `Head` / `UpperTorso` / `LowerTorso`;
 - клиент шлёт **только `{action, moveId}`** — урон считает сервер;
 - логика боя на **фиксированном шаге 60 Гц**, не в плавающем Heartbeat-dt;
-- **все числа боя** (тайминги, урон, стамина, баланс, хуртбоксы) — в `data/moves.json`, не в коде.
+- **все числа боя** (тайминги, урон, стамина, баланс, хуртбоксы) задаются в `data/moves.json`; затем `python tools/generate_move_module.py` обновляет Rojo-safe модули.
 
 ---
 
@@ -129,7 +129,9 @@ src/
     FrameData.luau        # ★ типы MoveDef/HitResult, фазы, resolveHit
     StaminaSystem.luau    # стамина, выдох, множители скорости
     FightMath.luau        # clamp/lerp/remap, поворот к цели
-    Moves.luau            # загрузчик moves.json + Moves.isValid
+    Moves.luau            # загрузчик moves + Moves.isValid
+    MoveData.luau         # сгенерировано из data/moves.json (вход для Rojo)
+    FighterData.luau      # сгенерировано из data/fighters.json
     Remotes.luau          # единая точка RemoteEvent
   server/
     Main.server.luau      # вход: спавн бойцов, манекен, тик-цикл
@@ -147,6 +149,7 @@ src/
     HUD.luau              # полоски здоровья/стамины
 tools/
   luau_syntax_check.py    # офлайн-проверка синтаксиса .luau (Luau -> Lua 5.1 + парсер)
+  generate_move_module.py # после правки JSON обновляет Luau-данные для Rojo
 docs/
   SETUP.md                # как работать через Rojo
   ROADMAP.md              # ★ что вырезано и как вернуть из истории git

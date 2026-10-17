@@ -77,10 +77,13 @@ function M.start()
 		end
 
 		local distance = FightMath.clamp(spread * 1.6 + M.CONFIG.minDistance, M.CONFIG.minDistance, M.CONFIG.maxDistance)
-		local side = Vector3.new(center.Z, 0, -center.X)
-		if side.Magnitude < 0.001 then
-			side = Vector3.new(1, 0, 0)
+		local fightAxis = Vector3.new(1, 0, 0)
+		if #targets > 1 then
+			fightAxis = targets[2].Position - targets[1].Position
+			fightAxis = Vector3.new(fightAxis.X, 0, fightAxis.Z)
 		end
+		local side = Vector3.new(fightAxis.Z, 0, -fightAxis.X)
+		if side.Magnitude < 0.001 then side = Vector3.new(0, 0, 1) end
 		side = side.Unit
 
 		local desiredPos = center + side * M.CONFIG.sideOffset + Vector3.new(0, M.CONFIG.heightOffset + spread * 0.15, 0)

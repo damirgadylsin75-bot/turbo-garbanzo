@@ -11,7 +11,8 @@ local HitboxSystem = require(script.Parent:WaitForChild("HitboxSystem"))
 local DummyController = require(script.Parent:WaitForChild("DummyController"))
 
 local M = {}
-local ORIGIN = Vector3.new(0, 2, 0)
+-- Ринг вынесен от стандартного Baseplate-спавна, чтобы бой не начинался автоматически.
+local ORIGIN = Vector3.new(150, 0.5, 0)
 local RING_SIZE = 36
 local SESSION_SECONDS = 240
 local arenaEvent = Remotes.event("ArenaSession")
