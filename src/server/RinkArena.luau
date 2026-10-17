@@ -84,6 +84,8 @@ local function endSession(player: Player, reason: string)
 	if root and root:IsA("BasePart") then
 		root.CFrame = returnCFrames[player] or CFrame.new(0, 6, 0)
 	end
+	local playerHumanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if playerHumanoid then playerHumanoid.AutoRotate = true end
 	returnCFrames[player] = nil
 	arenaEvent:FireClient(player, { active = false, reason = reason })
 end
@@ -98,6 +100,15 @@ local function startSession(player: Player, statsTable: { [string]: any })
 	if not fighter or not character or not root or not root:IsA("BasePart") then
 		return
 	end
+	local wasArchivable = character.Archivable
+	character.Archivable = true
+	local clone = character:Clone()
+	character.Archivable = wasArchivable
+	if not clone then
+		warn("[RinkArena] не удалось клонировать персонажа для манекена")
+		return
+	end
+	clone.Name = "FightDummy"
 	activePlayer = player
 	returnCFrames[player] = root.CFrame
 	fighter.health = fighter.maxHealth
@@ -108,9 +119,8 @@ local function startSession(player: Player, statsTable: { [string]: any })
 	fighter.knockdownFrames = 0
 	fighter.stamina.value = fighter.stamina.max
 	root.CFrame = CFrame.lookAt(ORIGIN + Vector3.new(-6, 3.5, 0), ORIGIN)
-
-	local clone = character:Clone()
-	clone.Name = "FightDummy"
+	local playerHumanoid = character:FindFirstChildOfClass("Humanoid")
+	if playerHumanoid then playerHumanoid.AutoRotate = false end
 	for _, item in ipairs(clone:GetDescendants()) do
 		if item:IsA("BaseScript") then
 			item:Destroy()

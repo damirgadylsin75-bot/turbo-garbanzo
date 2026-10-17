@@ -19,10 +19,6 @@ local function registerPlayer(player: Player)
 	local stats = statsTable[player.Name] or statsTable.default or FighterState.DEFAULT_STATS
 	local state = MatchServer.addFighter(player, stats)
 	state.character = character
-	local hum = character:FindFirstChildOfClass("Humanoid")
-	if hum then
-		hum.AutoRotate = false
-	end
 	HitboxSystem.buildHurtboxes(character)
 end
 

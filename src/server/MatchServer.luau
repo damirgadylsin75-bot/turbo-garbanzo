@@ -47,7 +47,6 @@ function M.addFighter(player: Player, stats: FighterState.FighterStats?)
 		state.humanoidRootPart = character:WaitForChild("HumanoidRootPart") :: BasePart?
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
 		if humanoid then
-			humanoid.AutoRotate = false
 			humanoid.MaxHealth = 10000
 			humanoid.Health = 10000
 		end

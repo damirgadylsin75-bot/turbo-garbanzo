@@ -11,15 +11,18 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Moves = require(Shared:WaitForChild("Moves"))
 local FightMath = require(Shared:WaitForChild("FightMath"))
+local Remotes = require(Shared:WaitForChild("Remotes"))
+local arenaEvent = Remotes.event("ArenaSession")
 
 local M = {}
 
 local player = Players.LocalPlayer
+local inArena = false
 
 local function applySetup(character: Model)
 	local hum = character:WaitForChild("Humanoid", 5)
 	if hum and hum:IsA("Humanoid") then
-		hum.AutoRotate = false
+		hum.AutoRotate = not inArena
 	end
 end
 
@@ -48,12 +51,19 @@ local function findOpponentRoot(myCharacter: Model): BasePart?
 end
 
 function M.start()
+	arenaEvent.OnClientEvent:Connect(function(payload)
+		inArena = typeof(payload) == "table" and payload.active == true
+		local character = player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if humanoid then humanoid.AutoRotate = not inArena end
+	end)
 	if player.Character then
 		applySetup(player.Character)
 	end
 	player.CharacterAdded:Connect(applySetup)
 
 	RunService.RenderStepped:Connect(function(dt)
+		if not inArena then return end
 		local character = player.Character
 		if not character then
 			return
