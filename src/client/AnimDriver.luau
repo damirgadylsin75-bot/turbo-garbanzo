@@ -11,6 +11,8 @@ local Players = game:GetService("Players")
 
 local M = {}
 
+M.ANIMATION_COUNT = 15
+
 -- ЗАПОЛНИ СВОИМИ assetId. Пустая строка = анимация не подключена.
 M.ANIMATIONS = {
 	jab = "",
@@ -72,6 +74,7 @@ local function getTrack(id: string): AnimationTrack?
 		return nil
 	end
 	local track = an:LoadAnimation(anim)
+	track.Priority = Enum.AnimationPriority.Action
 	tracks[id] = track
 	return track
 end
@@ -104,7 +107,7 @@ function M.reportMissing()
 		print("[AnimDriver] все анимации подключены")
 		return
 	end
-	print("[AnimDriver] не подключены анимации (" .. tostring(#missing) .. "): " .. table.concat(missing, ", "))
+	print("[AnimDriver] не подключено (" .. tostring(#missing) .. "): " .. table.concat(missing, ", "))
 	print("[AnimDriver] без анимаций игра работает - логика считает кадры по data/moves.json")
 end
 

@@ -4,35 +4,35 @@
 -- урона/позиций/кадров. Урон считает сервер (MatchServer).
 
 -- ===== РАСКЛАДКА КЛАВИАТУРЫ =====
-local KEYBOARD = {
-	[Enum.KeyCode.E] = { action = "strike", moveId = "jab" },
-	[Enum.KeyCode.R] = { action = "strike", moveId = "cross" },
-	[Enum.KeyCode.F] = { action = "strike", moveId = "hook_left" },
-	[Enum.KeyCode.G] = { action = "strike", moveId = "hook_right" },
-	[Enum.KeyCode.T] = { action = "strike", moveId = "uppercut_right" },
-	[Enum.KeyCode.Y] = { action = "strike", moveId = "overhand_right" },
-	[Enum.KeyCode.Q] = { action = "strike", moveId = "kick_low" },
-	[Enum.KeyCode.X] = { action = "strike", moveId = "kick_body" },
-	[Enum.KeyCode.C] = { action = "strike", moveId = "kick_head" },
-	[Enum.KeyCode.Z] = { action = "defense", moveId = "slip" },
+local KEYBOARD_BINDS = {
+	[Enum.KeyCode.J] = { action = "strike", moveId = "jab" },
+	[Enum.KeyCode.K] = { action = "strike", moveId = "cross" },
+	[Enum.KeyCode.U] = { action = "strike", moveId = "hook_left" },
+	[Enum.KeyCode.I] = { action = "strike", moveId = "hook_right" },
+	[Enum.KeyCode.O] = { action = "strike", moveId = "uppercut_right" },
+	[Enum.KeyCode.P] = { action = "strike", moveId = "overhand_right" },
+	[Enum.KeyCode.N] = { action = "strike", moveId = "kick_low" },
+	[Enum.KeyCode.M] = { action = "strike", moveId = "kick_body" },
+	[Enum.KeyCode.Comma] = { action = "strike", moveId = "kick_head" },
+	[Enum.KeyCode.B] = { action = "defense", moveId = "slip" },
 	[Enum.KeyCode.V] = { action = "defense", moveId = "duck" },
 	[Enum.KeyCode.Space] = { action = "block", moveId = "block" },
 }
 
 -- ===== РАСКЛАДКА ГЕЙМПАДА =====
 -- ButtonB НЕ используется: Roblox держит её под меню.
-local GAMEPAD = {
-	[Enum.KeyCode.ButtonA] = { action = "strike", moveId = "jab" },
-	[Enum.KeyCode.ButtonY] = { action = "strike", moveId = "hook_left" },
-	[Enum.KeyCode.ButtonX] = { action = "strike", moveId = "kick_low" },
+local GAMEPAD_BINDS = {
+	[Enum.KeyCode.ButtonR1] = { action = "strike", moveId = "jab" },
 	[Enum.KeyCode.ButtonR2] = { action = "strike", moveId = "cross" },
+	[Enum.KeyCode.ButtonY] = { action = "strike", moveId = "kick_head" },
+	[Enum.KeyCode.ButtonX] = { action = "strike", moveId = "kick_low" },
+	[Enum.KeyCode.ButtonA] = { action = "defense", moveId = "slip" },
+	[Enum.KeyCode.ButtonL1] = { action = "strike", moveId = "hook_left" },
 	[Enum.KeyCode.ButtonL2] = { action = "block", moveId = "block" },
-	[Enum.KeyCode.ButtonR1] = { action = "strike", moveId = "kick_head" },
-	[Enum.KeyCode.ButtonL1] = { action = "defense", moveId = "slip" },
-	[Enum.KeyCode.ButtonR3] = { action = "strike", moveId = "hook_right" },
-	[Enum.KeyCode.DPadUp] = { action = "strike", moveId = "uppercut_right" },
-	[Enum.KeyCode.DPadRight] = { action = "strike", moveId = "overhand_right" },
-	[Enum.KeyCode.DPadLeft] = { action = "strike", moveId = "kick_body" },
+	[Enum.KeyCode.ButtonR3] = { action = "strike", moveId = "overhand_right" },
+	[Enum.KeyCode.DPadUp] = { action = "strike", moveId = "kick_body" },
+	[Enum.KeyCode.DPadRight] = { action = "strike", moveId = "hook_right" },
+	[Enum.KeyCode.DPadLeft] = { action = "strike", moveId = "uppercut_right" },
 	[Enum.KeyCode.DPadDown] = { action = "defense", moveId = "duck" },
 }
 
@@ -70,8 +70,8 @@ local function printLayout()
 			print(string.format("[InputBuffer]   %-12s -> %s %s", name, bind.action, bind.moveId))
 		end
 	end
-	dump("=== раскладка клавиатуры ===", KEYBOARD)
-	dump("=== раскладка геймпада (ButtonB не используется - занята меню Roblox) ===", GAMEPAD)
+	dump("=== раскладка клавиатуры ===", KEYBOARD_BINDS)
+	dump("=== раскладка геймпада (ButtonB не используется - занята меню Roblox) ===", GAMEPAD_BINDS)
 end
 
 -- Отключаем дефолтный прыжок Roblox: он занимает Space
@@ -99,15 +99,15 @@ function M.start()
 
 	-- единая таблица кодов: клавиатура + геймпад
 	local byCode: { [Enum.KeyCode]: any } = {}
-	for code, bind in pairs(KEYBOARD) do
+	for code, bind in pairs(KEYBOARD_BINDS) do
 		byCode[code] = bind
 	end
-	for code, bind in pairs(GAMEPAD) do
+	for code, bind in pairs(GAMEPAD_BINDS) do
 		byCode[code] = bind
 	end
 
 	UserInputService.InputBegan:Connect(function(input, processed)
-		if processed then
+		if processed and input.UserInputType ~= Enum.UserInputType.Gamepad1 then
 			return
 		end
 		local bind = byCode[input.KeyCode]
@@ -119,7 +119,7 @@ function M.start()
 	end)
 
 	UserInputService.InputEnded:Connect(function(input, processed)
-		if processed then
+		if processed and input.UserInputType ~= Enum.UserInputType.Gamepad1 then
 			return
 		end
 		local bind = byCode[input.KeyCode]

@@ -29,7 +29,7 @@ local accumulator = 0
 local started = false
 local snapshotTimer = 0
 local SNAPSHOT_INTERVAL = 1 / 30 -- 30 Гц снапшотов на клиентов
-local MIN_INTENT_INTERVAL = 1 / 30 -- античит: не чаще 30 намерений в секунду
+local MIN_INTENT_INTERVAL = 1 / 40 -- античит: ограничение около 40 намерений в секунду
 local rate: { [Player]: number } = {}
 
 local evInput = Remotes.event("FighterInput")
@@ -232,6 +232,7 @@ function M.start()
 		return
 	end
 	started = true
+	print("[MatchServer] симуляция запущена (60 Гц)")
 	RunService.Heartbeat:Connect(function(dt)
 		accumulator += dt
 		local step = FrameData.FRAME
@@ -288,7 +289,7 @@ evInput.OnServerEvent:Connect(function(player, payload)
 	if typeof(payload.action) ~= "string" then
 		return
 	end
-	-- простейший античит: не чаще 30 намерений в секунду
+	-- простейший античит: около 40 намерений в секунду
 	local now = os.clock()
 	local last = rate[player] or 0
 	if now - last < MIN_INTENT_INTERVAL then

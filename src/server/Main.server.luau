@@ -36,7 +36,7 @@ local function spawnDummyIfSolo()
 	if #fighters >= 2 then
 		return
 	end
-	local dummyStats = statsTable.bot or statsTable.default or FighterState.DEFAULT_STATS
+	local dummyStats = statsTable.dummy or statsTable.default or FighterState.DEFAULT_STATS
 	local dummy = FighterState.new("DUMMY", dummyStats, nil)
 	MatchServer.registerFighter(dummy)
 
@@ -67,6 +67,7 @@ local function spawnDummyIfSolo()
 	end
 
 	DummyController.attach(dummy.id)
+	print("[Main] манекен создан")
 	MatchServer.start()
 end
 

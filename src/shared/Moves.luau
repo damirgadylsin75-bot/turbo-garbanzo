@@ -73,6 +73,7 @@ local function load()
 		end
 		table.insert(cat, move)
 	end
+	print("[Moves] загружено приёмов: " .. tostring(#decoded.moves))
 end
 
 function M.get(id: string): MoveDef?
