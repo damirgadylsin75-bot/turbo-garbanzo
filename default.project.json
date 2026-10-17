@@ -25,7 +25,7 @@
     "Workspace": {
       "$className": "Workspace",
       "$properties": {
-        "PhysicsSteppingMethod": "FixedTimestep"
+        "PhysicsSteppingMethod": "Fixed"
       }
     }
   }
