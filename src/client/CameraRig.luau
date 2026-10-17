@@ -15,6 +15,8 @@ local M = {}
 local camera = workspace.CurrentCamera
 local evHit = Remotes.event("HitFX")
 local evKnockdown = Remotes.event("KnockdownFX")
+local evArena = Remotes.event("ArenaSession")
+local cameraEnabled = false
 
 local shakeAmount = 0
 local shakeDecay = 6
@@ -33,22 +35,33 @@ function M.start()
 	if not camera then
 		camera = workspace.CurrentCamera or Instance.new("Camera")
 	end
-	camera.CameraType = Enum.CameraType.Scriptable
-
 	local targets: { BasePart } = {}
+	evArena.OnClientEvent:Connect(function(payload)
+		cameraEnabled = typeof(payload) == "table" and payload.active == true
+		if not camera then return end
+		if cameraEnabled then
+			camera.CameraType = Enum.CameraType.Scriptable
+		else
+			camera.CameraType = Enum.CameraType.Custom
+			local character = game:GetService("Players").LocalPlayer.Character
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			if humanoid then camera.CameraSubject = humanoid end
+		end
+	end)
 
 	RunService.RenderStepped:Connect(function(dt)
-		-- собираем бойцов: игроки + манекен (любая модель с Humanoid)
+		if not cameraEnabled then return end
+		-- В арене кадрируем только игрока и его манекен.
 		targets = {}
-		for _, inst in ipairs(workspace:GetChildren()) do
-			if inst:IsA("Model") then
-				local hum = inst:FindFirstChildOfClass("Humanoid")
-				local hrp = inst:FindFirstChild("HumanoidRootPart")
-				if hum and hrp and hrp:IsA("BasePart") then
-					table.insert(targets, hrp :: BasePart)
-				end
-			end
+		local character = game:GetService("Players").LocalPlayer.Character
+		if character then
+			local myRoot = character:FindFirstChild("HumanoidRootPart")
+			if myRoot and myRoot:IsA("BasePart") then table.insert(targets, myRoot) end
 		end
+		local dummy = workspace:FindFirstChild("FightDummy")
+		local dummyRoot = dummy and dummy:FindFirstChild("HumanoidRootPart")
+		if dummyRoot and dummyRoot:IsA("BasePart") then table.insert(targets, dummyRoot) end
+		--
 		if #targets == 0 then
 			return
 		end

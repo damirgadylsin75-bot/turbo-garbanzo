@@ -45,6 +45,12 @@ function M.addFighter(player: Player, stats: FighterState.FighterStats?)
 	player.CharacterAdded:Connect(function(character)
 		state.character = character
 		state.humanoidRootPart = character:WaitForChild("HumanoidRootPart") :: BasePart?
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.AutoRotate = false
+			humanoid.MaxHealth = 10000
+			humanoid.Health = 10000
+		end
 		HitboxSystem.buildHurtboxes(character)
 		if workspace:GetAttribute("FightDebugHitboxes") then
 			HitboxSystem.setDebugVisible(character, true)
@@ -86,6 +92,24 @@ function M.handleInputBot(fighterId: string, payload: { [string]: any })
 		return
 	end
 	M.applyIntent(state, payload)
+end
+
+function M.getPlayerFighter(player: Player): FighterState.FighterState?
+	return fighters[tostring(player.UserId)]
+end
+
+function M.getFighterById(id: string): FighterState.FighterState?
+	return fighters[id]
+end
+
+function M.removeFighter(id: string)
+	fighters[id] = nil
+	for index, fighterId in ipairs(order) do
+		if fighterId == id then
+			table.remove(order, index)
+			break
+		end
+	end
 end
 
 function M.getFighters(): { FighterState.FighterState }

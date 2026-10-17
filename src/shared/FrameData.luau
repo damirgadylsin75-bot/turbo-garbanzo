@@ -101,7 +101,7 @@ function M.cancelWindow(move: MoveDef): (number, number)
 end
 
 -- Кадры супер-армора (по умолчанию - активные)
-function M.armorFrames(move: MoveDef): (number, number)?
+function M.armorFrames(move: MoveDef): (number?, number?)
 	local armor = move.props.armorFrames
 	if not armor then
 		return nil

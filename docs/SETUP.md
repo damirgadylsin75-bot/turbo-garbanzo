@@ -135,10 +135,10 @@ ReplicatedStorage
   ├── Shared        <- FrameData, StaminaSystem, Moves, ...
   └── FightData     <- moves.json, fighters.json
 ServerScriptService
-  └── Server        <- MatchServer, FighterState, HitboxSystem, ...
+  └── Server        <- MatchServer, FighterState, HitboxSystem, RinkArena, ...
 StarterPlayer
   └── StarterPlayerScripts
-      └── Client    <- InputBuffer, AnimDriver, CameraRig, VFX, HUD
+      └── Client    <- InputBuffer, AnimDriver, CameraRig, ArenaUI, VFX, HUD
 ```
 
 Если папки появились — всё работает, можно жать **Play**.

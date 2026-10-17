@@ -1,111 +1,62 @@
 --!strict
--- Серверная точка входа: поднимает бой, манекен и дебаг-команды.
--- Тестовая сборка: только стойка, соперник - неподвижный манекен
--- (DummyController, режимы через workspace-атрибут "FightDummyMode").
-
+-- Основная точка входа сервера: игроки регистрируются, арена создаётся один раз.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local FrameData = require(Shared:WaitForChild("FrameData"))
-
 local Server = script.Parent
 local MatchServer = require(Server:WaitForChild("MatchServer"))
-local DummyController = require(Server:WaitForChild("DummyController"))
 local FighterState = require(Server:WaitForChild("FighterState"))
 local HitboxSystem = require(Server:WaitForChild("HitboxSystem"))
+local RinkArena = require(Server:WaitForChild("RinkArena"))
 
--- 1. Собираем статистику бойцов из data/fighters.json
-local function loadFighterStats(): { [string]: FighterState.FighterStats }
-	local ok, asset = pcall(function()
-		return ReplicatedStorage:WaitForChild("FightData"):WaitForChild("fighters", 5)
-	end)
-	if not ok or not asset or not asset:IsA("JsonStringValue") then
-		return { default = FighterState.DEFAULT_STATS }
+local function loadFighterStats(): { [string]: any }
+	local folder = ReplicatedStorage:WaitForChild("FightData")
+	local asset = folder:WaitForChild("fighters", 5)
+	if not asset or not asset:IsA("JsonStringValue") then
+		return { default = FighterState.DEFAULT_STATS, dummy = FighterState.DEFAULT_STATS }
 	end
-	local decoded = game:GetService("HttpService"):JSONDecode((asset :: JsonStringValue).Value)
-	return decoded.fighters or { default = FighterState.DEFAULT_STATS }
+	local ok, decoded = pcall(function()
+		return game:GetService("HttpService"):JSONDecode((asset :: JsonStringValue).Value)
+	end)
+	if ok and decoded and decoded.fighters then
+		return decoded.fighters
+	end
+	return { default = FighterState.DEFAULT_STATS, dummy = FighterState.DEFAULT_STATS }
 end
 
 local statsTable = loadFighterStats()
-
--- 2. Спавним манекен, чтобы можно было тестить в одиночку
-local function spawnDummyIfSolo()
-	local fighters = MatchServer.getFighters()
-	if #fighters >= 2 then
-		return
+local function registerPlayer(player: Player)
+	local character = player.Character or player.CharacterAdded:Wait()
+	local stats = statsTable[player.Name] or statsTable.default or FighterState.DEFAULT_STATS
+	local state = MatchServer.addFighter(player, stats)
+	state.character = character
+	local hum = character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.AutoRotate = false
 	end
-	local dummyStats = statsTable.dummy or statsTable.default or FighterState.DEFAULT_STATS
-	local dummy = FighterState.new("DUMMY", dummyStats, nil)
-	MatchServer.registerFighter(dummy)
-
-	-- телом манекена делаем копию персонажа первого игрока (R15)
-	local first = fighters[1]
-	if first and first.character then
-		local clone = first.character:Clone()
-		clone.Name = "FightDummy"
-		for _, d in ipairs(clone:GetDescendants()) do
-			if d:IsA("BasePart") then
-				d.Transparency = math.min(0.6, d.Transparency)
-			end
-		end
-		clone.Parent = workspace
-		local hrp = clone:FindFirstChild("HumanoidRootPart")
-		if hrp and first.humanoidRootPart then
-			clone:PivotTo(first.humanoidRootPart.CFrame * CFrame.new(0, 0, -8))
-		end
-		dummy.character = clone
-		dummy.humanoidRootPart = clone:FindFirstChild("HumanoidRootPart") :: BasePart?
-		local hum = clone:FindFirstChildOfClass("Humanoid")
-		if hum then
-			hum.MaxHealth = 100000
-			hum.Health = 100000
-			hum.AutoRotate = false
-		end
-		HitboxSystem.buildHurtboxes(clone)
-	end
-
-	DummyController.attach(dummy.id)
-	print("[Main] манекен создан")
-	MatchServer.start()
+	HitboxSystem.buildHurtboxes(character)
 end
 
 Players.PlayerAdded:Connect(function(player)
-	player.CharacterAdded:Wait()
-	local stats = statsTable[player.Name] or statsTable.default or FighterState.DEFAULT_STATS
-	MatchServer.addFighter(player, stats)
-	task.wait(1)
-	spawnDummyIfSolo()
+	task.spawn(registerPlayer, player)
 end)
-
-for _, p in ipairs(Players:GetPlayers()) do
-	if p.Character then
-		MatchServer.addFighter(p, statsTable.default)
-	end
+for _, player in ipairs(Players:GetPlayers()) do
+	task.spawn(registerPlayer, player)
 end
 
--- 3. Тик манекена в серверном цикле (тот же шаг, что и симуляция)
-local dummyAccumulator = 0
-RunService.Heartbeat:Connect(function(dt)
-	dummyAccumulator += dt
-	local step = FrameData.FRAME
-	local guard = 0
-	while dummyAccumulator >= step and guard < 5 do
-		DummyController.tick(step)
-		dummyAccumulator -= step
-		guard += 1
-	end
-end)
+RinkArena.start(statsTable)
 
--- 4. Дебаг-команды (включаются атрибутами workspace)
-workspace:GetAttributeChangedSignal("FightDebugHitboxes"):Connect(function()
+local debugSignal = workspace:GetAttributeChangedSignal("FightDebugHitboxes")
+debugSignal:Connect(function()
 	local visible = workspace:GetAttribute("FightDebugHitboxes") == true
-	for _, f in ipairs(MatchServer.getFighters()) do
-		if f.character then
-			HitboxSystem.setDebugVisible(f.character, visible)
+	for _, fighter in ipairs(MatchServer.getFighters()) do
+		if fighter.character then
+			HitboxSystem.setDebugVisible(fighter.character, visible)
 		end
 	end
 end)
 
-print("[turbo-garbanzo] server ready (test build: standing only)")
+-- DummyController ticks as part of the fixed 60 Hz match simulation.
+print("[Main] тренировочная арена создана; подойди к стойке и нажми E")

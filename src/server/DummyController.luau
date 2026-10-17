@@ -38,6 +38,11 @@ function M.attach(fighterId: string)
 	state.id = fighterId
 end
 
+function M.detach()
+	state.id = nil
+	state.cooldown = 0
+end
+
 -- Манекен всегда повёрнут к игроку (только рыскание, позиция не двигается)
 local function faceOpponent(selfRoot: BasePart, oppRoot: BasePart)
 	local flat = Vector3.new(oppRoot.Position.X - selfRoot.Position.X, 0, oppRoot.Position.Z - selfRoot.Position.Z)
