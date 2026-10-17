@@ -97,7 +97,24 @@ function M.syncHitbox(character: Model, move: FrameData.MoveDef?, moveFrame: num
 		existing.Parent = folder
 	end
 	existing.Size = spec.size
-	existing.CFrame = bone.CFrame * CFrame.new(spec.offset)
+	local hitCFrame = bone.CFrame * CFrame.new(spec.offset)
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if root and root:IsA("BasePart") and move and spec.reach then
+		-- Server-side extension keeps hits working even when no animation asset is loaded.
+		-- Preserve bone-side offset, but place the active box at its JSON reach and strike level.
+		local forward = root.CFrame.LookVector
+		local right = root.CFrame.RightVector
+		local lateral = (hitCFrame.Position - root.Position):Dot(right)
+		local height = 0.55
+		if move.hitLevel == "high" then
+			height = 2.1
+		elseif move.hitLevel == "low" then
+			height = -0.65
+		end
+		local center = root.Position + forward * spec.reach + right * lateral + Vector3.new(0, height, 0)
+		hitCFrame = CFrame.new(center) * hitCFrame.Rotation
+	end
+	existing.CFrame = hitCFrame
 	existing:SetAttribute("moveId", move and move.id or "")
 	existing:SetAttribute("level", move and move.hitLevel or "mid")
 	return existing

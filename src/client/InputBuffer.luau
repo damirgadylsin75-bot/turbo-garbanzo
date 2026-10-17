@@ -106,31 +106,43 @@ function M.start()
 		byCode[code] = bind
 	end
 
-	UserInputService.InputBegan:Connect(function(input, processed)
-		if processed and input.UserInputType ~= Enum.UserInputType.Gamepad1 then
-			return
-		end
-		local bind = byCode[input.KeyCode]
-		if not bind then
-			return
-		end
+	local function beginBind(bind: any)
 		send({ action = bind.action, moveId = bind.moveId })
 		AnimDriver.play(bind.moveId)
-	end)
-
-	UserInputService.InputEnded:Connect(function(input, processed)
-		if processed and input.UserInputType ~= Enum.UserInputType.Gamepad1 then
-			return
-		end
-		local bind = byCode[input.KeyCode]
-		if not bind then
-			return
-		end
+	end
+	local function endBind(bind: any)
 		if bind.action == "block" then
 			send({ action = "unblock", moveId = bind.moveId })
 			AnimDriver.stop()
 		end
+	end
+
+	-- Клавиатура через UIS. Геймпад отдельно через CAS с высоким приоритетом:
+	-- так кнопки не теряются, когда CoreGui Roblox помечает их processed.
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if input.UserInputType ~= Enum.UserInputType.Keyboard or processed then return end
+		local bind = KEYBOARD_BINDS[input.KeyCode]
+		if bind then beginBind(bind) end
 	end)
+	UserInputService.InputEnded:Connect(function(input, processed)
+		if input.UserInputType ~= Enum.UserInputType.Keyboard or processed then return end
+		local bind = KEYBOARD_BINDS[input.KeyCode]
+		if bind then endBind(bind) end
+	end)
+
+	local gamepadKeys = {}
+	for keyCode in pairs(GAMEPAD_BINDS) do table.insert(gamepadKeys, keyCode) end
+	ContextActionService:UnbindAction("FightGamepadInput")
+	ContextActionService:BindActionAtPriority("FightGamepadInput", function(_, inputState, input)
+		local bind = GAMEPAD_BINDS[input.KeyCode]
+		if not bind then return Enum.ContextActionResult.Pass end
+		if inputState == Enum.UserInputState.Begin then
+			beginBind(bind)
+		elseif inputState == Enum.UserInputState.End then
+			endBind(bind)
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.ContextActionPriority.High.Value, table.unpack(gamepadKeys))
 end
 
 return M
