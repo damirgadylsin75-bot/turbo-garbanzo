@@ -122,6 +122,21 @@ function M.getFighters(): { FighterState.FighterState }
 	return out
 end
 
+local function inStrikeRange(attacker: FighterState.FighterState, defender: FighterState.FighterState, move: FrameData.MoveDef): boolean
+	local aRoot = attacker.humanoidRootPart
+	local dRoot = defender.humanoidRootPart
+	local hitbox = move.hitbox
+	if not aRoot or not dRoot or not hitbox then return false end
+	local offset = dRoot.Position - aRoot.Position
+	local planar = Vector3.new(offset.X, 0, offset.Z)
+	if planar.Magnitude > hitbox.reach + 0.35 then return false end
+	if planar.Magnitude > 0.05 then
+		local facing = Vector3.new(aRoot.CFrame.LookVector.X, 0, aRoot.CFrame.LookVector.Z)
+		if facing.Magnitude > 0.05 and facing.Unit:Dot(planar.Unit) < 0.35 then return false end
+	end
+	return true
+end
+
 local function resolveCollisions()
 	local list = M.getFighters()
 	if #list < 2 then
@@ -143,7 +158,7 @@ local function resolveCollisions()
 			local hitA = HitboxSystem.syncHitbox(a.character, a.move, a.moveFrame)
 			local hitB = HitboxSystem.syncHitbox(b.character, b.move, b.moveFrame)
 
-			if hitA and a.move and not a.hitConsumed then
+			if hitA and a.move and not a.hitConsumed and inStrikeRange(a, b, a.move) then
 				local level = HitboxSystem.queryHit(hitA, b.character)
 				if level then
 					local dir = (b.humanoidRootPart.Position - a.humanoidRootPart.Position).Unit
@@ -179,7 +194,7 @@ local function resolveCollisions()
 			end
 
 			-- симметрично для B
-			if hitB and b.move and not b.hitConsumed then
+			if hitB and b.move and not b.hitConsumed and inStrikeRange(b, a, b.move) then
 				local level = HitboxSystem.queryHit(hitB, a.character)
 				if level then
 					local dir = (a.humanoidRootPart.Position - b.humanoidRootPart.Position).Unit

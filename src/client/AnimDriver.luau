@@ -174,7 +174,8 @@ function M.start()
 		task.defer(refreshJoints)
 	end)
 	if Players.LocalPlayer.Character then refreshJoints() end
-	RunService.PreSimulation:Connect(applyProceduralPose)
+	-- Run last so Roblox's default character Animator cannot overwrite our fallback poses.
+	RunService:BindToRenderStep("FightProceduralAnimation", Enum.RenderPriority.Last.Value, applyProceduralPose)
 end
 
 function M.reportMissing()

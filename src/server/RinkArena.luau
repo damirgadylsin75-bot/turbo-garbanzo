@@ -118,7 +118,7 @@ local function startSession(player: Player, statsTable: { [string]: any })
 	fighter.stunFrames = 0
 	fighter.knockdownFrames = 0
 	fighter.stamina.value = fighter.stamina.max
-	root.CFrame = CFrame.lookAt(ORIGIN + Vector3.new(-3.5, 3.5, 0), ORIGIN)
+	root.CFrame = CFrame.lookAt(ORIGIN + Vector3.new(-2.4, 3.5, 0), ORIGIN)
 	local playerHumanoid = character:FindFirstChildOfClass("Humanoid")
 	if playerHumanoid then playerHumanoid.AutoRotate = false end
 	for _, item in ipairs(clone:GetDescendants()) do
@@ -129,7 +129,7 @@ local function startSession(player: Player, statsTable: { [string]: any })
 		end
 	end
 	clone.Parent = workspace
-	clone:PivotTo(CFrame.lookAt(ORIGIN + Vector3.new(3.5, 3.5, 0), ORIGIN))
+	clone:PivotTo(CFrame.lookAt(ORIGIN + Vector3.new(2.4, 3.5, 0), ORIGIN))
 	local humanoid = clone:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		humanoid.MaxHealth = 100000
