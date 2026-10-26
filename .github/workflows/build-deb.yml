@@ -1,0 +1,80 @@
+# Build TGRestore tweak .deb on GitHub Actions (macOS runner + Theos).
+#
+# - push на main: автоматическая сборка
+# - manual: Actions → "Build deb" → Run workflow
+# - tag v*: сборка + релиз с deb
+#
+# Результат: артефакт .theos/*.deb (скачиваемый из Actions),
+# а для тэгов — релиз на репозиторий.
+
+name: Build deb
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build deb (rootless)
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Theos
+        uses: actions/cache@v4
+        with:
+          path: /opt/theos
+          key: theos-${{ hashFiles('.github/workflows/build-deb.yml') }}
+          restore-keys: theos-
+
+      - name: Select Xcode
+        run: |
+          XCODE_APP=$(ls -d /Applications/Xcode*.app | sort -V | tail -n1)
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+
+      - name: Install dpkg (deb packaging)
+        run: brew list dpkg >/dev/null 2>&1 || brew install dpkg
+
+      - name: Setup Theos
+        run: |
+          if [ ! -d /opt/theos ]; then
+            sudo git clone --depth 1 https://github.com/theos/theos /opt/theos
+          fi
+          sudo git -C /opt/theos submodule update --init --recursive
+
+      - name: Build tweak
+        working-directory: tweaks/TGRestore
+        run: |
+          export THEOS=/opt/theos
+          export SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
+          make clean
+          make package THEOS_PACKAGE_SCHEME=rootless
+
+      - name: Upload deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TGRestore-deb
+          path: tweaks/TGRestore/.theos/*.deb
+          if-no-files-found: error
+
+  release:
+    name: Release on tag
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: TGRestore-deb
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: TGRestore-deb/*.deb

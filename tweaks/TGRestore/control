@@ -1,0 +1,12 @@
+Package: com.turbogarbanzo.tgrestore
+Name: TGRestore
+Version: 1.0
+Architecture: iphoneos-arm
+Author: turbo-garbanzo
+Maintainer: turbo-garbanzo
+Section: Tweaks
+Installed-Size: 12288
+Depends: firmware (>= 15.0)
+Description: <en>See deleted Telegram messages. TGRestore caches the text of messages rendered on your device and re-shows them as restored bubbles when a message gets deleted (for everyone or for you). UIKit-level hooks — no hard dependency on Telegram internals, works with modern Telegram iOS builds. Rootless jailbreak (Dopamine/palera1n) compatible. Note: messages whose content was never loaded on this device cannot be recovered — Telegram deletes them server-side.</en>
+ <ru>Просмотр удалённых сообщений в Telegram. TGRestore кэширует текст сообщений, которые открывались на этом устройстве, и показывает их в виде восстанавленных bubble, когда сообщение удаляется (для всех или для вас). Хуки на уровне UIKit — не зависят от внутренней структуры Telegram, работают с современными сборками. Подходит для rootless jailbreak (Dopamine/palera1n). Внимание: сообщения, которые никогда не загружались на это устройство, восстановить невозможно — Telegram удаляет их на сервере.</ru>
+Tag: theme
